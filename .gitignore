@@ -22,6 +22,10 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Allow frontend code folders that may be named "lib" (e.g. Vite/React templates)
+!barstock-buddy-main/src/lib/
+!barstock-buddy-main/src/lib/**
+
 # PyInstaller
 *.manifest
 *.spec
@@ -262,3 +266,7 @@ config.json
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Allow frontend code folders that may be named "lib"
+!frontend/src/lib/
+!frontend/src/lib/**
