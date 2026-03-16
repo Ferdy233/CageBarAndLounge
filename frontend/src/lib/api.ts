@@ -7,8 +7,16 @@ const REFRESH_TOKEN_KEY = "barstock_refresh_token";
 let refreshInFlight: Promise<string | null> | null = null;
 
 function getApiBaseUrl(): string {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-  return (base ?? "").replace(/\/$/, "");
+  const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+  if (!base) return "";
+
+  const isLocalBase = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(base);
+  if (!isLocalBase) return base;
+
+  if (typeof window === "undefined") return base;
+
+  const isLocalHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  return isLocalHost ? base : "";
 }
 
 export function getAccessToken(): string | null {

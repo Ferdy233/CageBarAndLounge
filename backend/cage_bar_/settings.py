@@ -33,7 +33,7 @@ _allowed_hosts_env = os.environ.get("ALLOWED_HOSTS", "")
 if _allowed_hosts_env.strip():
     ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(",") if h.strip()]
 else:
-    ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".vercel.app"]
+    ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".vercel.app"] if DEBUG else [".vercel.app"]
 
 
 # Application definition
@@ -164,10 +164,14 @@ if _cors_allowed_origins_env.strip():
         origin.strip() for origin in _cors_allowed_origins_env.split(",") if origin.strip()
     ]
 else:
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+    CORS_ALLOWED_ORIGINS = (
+        [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+        if DEBUG
+        else []
+    )
 
 
 # Resend email
