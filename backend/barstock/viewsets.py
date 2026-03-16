@@ -72,7 +72,15 @@ def send_resend_email(subject: str, message: str, to_emails: list[str]) -> tuple
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="ignore")
         logger.warning("Resend email failed with status %s: %s", exc.code, body)
-        return False, f"http_{exc.code}"
+        detail = ""
+        if body:
+            try:
+                parsed_body = json.loads(body)
+                detail = str(parsed_body.get("message") or parsed_body.get("error") or "").strip()
+            except Exception:
+                detail = body.strip()
+        detail = detail[:160]
+        return False, f"http_{exc.code}{f':{detail}' if detail else ''}"
     except Exception:
         logger.exception("Resend email request failed")
         return False, "request_failed"
