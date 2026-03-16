@@ -34,10 +34,13 @@ def send_resend_email(subject: str, message: str, to_emails: list[str]) -> tuple
     api_key = (getattr(settings, "RESEND_API_KEY", "") or "").strip()
     from_email = (getattr(settings, "RESEND_FROM_EMAIL", "") or "").strip()
     if not api_key:
+        logger.warning("EOD email skipped: missing RESEND_API_KEY")
         return False, "missing_resend_api_key"
     if not from_email:
+        logger.warning("EOD email skipped: missing RESEND_FROM_EMAIL")
         return False, "missing_resend_from_email"
     if not to_emails:
+        logger.warning("EOD email skipped: no recipient emails")
         return False, "missing_recipient_emails"
 
     payload = {
@@ -59,6 +62,12 @@ def send_resend_email(subject: str, message: str, to_emails: list[str]) -> tuple
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             ok = 200 <= response.status < 300
+            logger.info(
+                "EOD email send attempt completed: ok=%s status=%s recipients=%s",
+                ok,
+                response.status,
+                to_emails,
+            )
             return (ok, "sent" if ok else f"http_{response.status}")
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="ignore")
@@ -323,6 +332,15 @@ Cage Bar and Lounge Management System
                     report.save(update_fields=["email_sent"])
             else:
                 email_status = "no_admin_recipients"
+
+            logger.info(
+                "EOD email delivery result: date=%s submitted_by=%s sent=%s status=%s recipients=%s",
+                today,
+                request.user.username,
+                bool(report.email_sent),
+                email_status,
+                admin_emails,
+            )
 
         serializer = self.get_serializer(report)
         response_data = dict(serializer.data)
