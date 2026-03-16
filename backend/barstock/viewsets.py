@@ -5,6 +5,7 @@ import urllib.request
 
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -154,7 +155,17 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             raise ValidationError({"detail": "You cannot delete yourself."})
         if user.is_superuser:
             raise ValidationError({"detail": "You cannot delete a superuser."})
-        user.delete()
+        try:
+            user.delete()
+        except ProtectedError:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "This user cannot be deleted because they have linked records "
+                        "(for example sales, stock adjustments, or reports)."
+                    )
+                }
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
