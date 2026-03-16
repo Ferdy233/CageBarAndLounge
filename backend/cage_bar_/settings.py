@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-wcep*=8n7z!3zc2^1d4xp1w+pk8g-23r#%pvvazjr_w52r@tjj"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
 _allowed_hosts_env = os.environ.get("ALLOWED_HOSTS", "")
 if _allowed_hosts_env.strip():
@@ -108,13 +108,15 @@ if DATABASE_URL:
             "OPTIONS": options,
         }
     }
-else:
+elif DEBUG:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+else:
+    raise RuntimeError("DATABASE_URL is required when DEBUG=False")
 
 
 # Password validation
