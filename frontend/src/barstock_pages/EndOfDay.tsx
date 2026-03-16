@@ -33,6 +33,14 @@ interface EODReport {
   created_at: string;
 }
 
+interface EODSubmitResponse extends EODReport {
+  email_delivery?: {
+    sent: boolean;
+    status: string;
+    recipients: string[];
+  };
+}
+
 interface TodayStatus {
   submitted: boolean;
   report?: EODReport;
@@ -71,13 +79,18 @@ export function EndOfDay() {
 
     setIsSubmitting(true);
     try {
-      await apiFetchAuth<EODReport>('/api/eod-reports/submit/', {
+      const result = await apiFetchAuth<EODSubmitResponse>('/api/eod-reports/submit/', {
         method: 'POST',
         body: { notes },
       });
+
+      const emailDelivery = result.email_delivery;
       toast({
         title: 'End of Day Report Submitted',
-        description: 'The report has been saved and emailed to admin(s).',
+        description: emailDelivery?.sent
+          ? 'The report has been saved and emailed to admin(s).'
+          : `Report saved, but email not sent (${emailDelivery?.status ?? 'unknown_reason'}).`,
+        variant: emailDelivery?.sent ? 'default' : 'destructive',
       });
       await loadTodayStatus();
     } catch (err) {
