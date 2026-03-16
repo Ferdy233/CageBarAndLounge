@@ -29,11 +29,15 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-def send_resend_email(subject: str, message: str, to_emails: list[str]) -> bool:
+def send_resend_email(subject: str, message: str, to_emails: list[str]) -> tuple[bool, str]:
     api_key = (getattr(settings, "RESEND_API_KEY", "") or "").strip()
     from_email = (getattr(settings, "RESEND_FROM_EMAIL", "") or "").strip()
-    if not api_key or not from_email or not to_emails:
-        return False
+    if not api_key:
+        return False, "missing_resend_api_key"
+    if not from_email:
+        return False, "missing_resend_from_email"
+    if not to_emails:
+        return False, "missing_recipient_emails"
 
     payload = {
         "from": from_email,
@@ -53,13 +57,15 @@ def send_resend_email(subject: str, message: str, to_emails: list[str]) -> bool:
 
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
-            return 200 <= response.status < 300
+            ok = 200 <= response.status < 300
+            return (ok, "sent" if ok else f"http_{response.status}")
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="ignore")
         logger.warning("Resend email failed with status %s: %s", exc.code, body)
+        return False, f"http_{exc.code}"
     except Exception:
         logger.exception("Resend email request failed")
-    return False
+        return False, "request_failed"
 
 
 class IsBarStockAdmin(permissions.BasePermission):
@@ -281,6 +287,7 @@ class EndOfDayReportViewSet(viewsets.ReadOnlyModelViewSet):
             )
             admin_emails = [e for e in admin_emails if e]
 
+            email_status = "not_attempted"
             if admin_emails:
                 subject = f"End of Day Report - {today.strftime('%B %d, %Y')}"
                 message = f"""End of Day Sales Report
@@ -299,12 +306,21 @@ Notes: {notes or 'None'}
 ---
 Cage Bar and Lounge Management System
 """
-                if send_resend_email(subject, message, admin_emails):
+                email_sent, email_status = send_resend_email(subject, message, admin_emails)
+                if email_sent:
                     report.email_sent = True
                     report.save(update_fields=["email_sent"])
+            else:
+                email_status = "no_admin_recipients"
 
         serializer = self.get_serializer(report)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        response_data = dict(serializer.data)
+        response_data["email_delivery"] = {
+            "sent": bool(report.email_sent),
+            "status": email_status,
+            "recipients": admin_emails,
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"], url_path="today")
     def today_status(self, request):
