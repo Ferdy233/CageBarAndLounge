@@ -27,9 +27,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-wcep*=8n7z!3zc2^1d4xp1w+pk8g-23r#%pvvazjr_w52r@tjj"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = []
+_allowed_hosts_env = os.environ.get("ALLOWED_HOSTS", "")
+if _allowed_hosts_env.strip():
+    ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(",") if h.strip()]
+else:
+    ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".vercel.app"]
 
 
 # Application definition
@@ -154,10 +158,16 @@ REST_FRAMEWORK = {
 
 
 # CORS (Next.js dev server)
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+_cors_allowed_origins_env = os.environ.get("CORS_ALLOWED_ORIGINS", "")
+if _cors_allowed_origins_env.strip():
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip() for origin in _cors_allowed_origins_env.split(",") if origin.strip()
+    ]
+else:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
 
 # Resend email
