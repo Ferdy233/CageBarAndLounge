@@ -175,6 +175,18 @@ else:
         else []
     )
 
+_cors_allowed_origin_regexes_env = os.environ.get("CORS_ALLOWED_ORIGIN_REGEXES", "")
+if _cors_allowed_origin_regexes_env.strip():
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        pattern.strip()
+        for pattern in _cors_allowed_origin_regexes_env.split(",")
+        if pattern.strip()
+    ]
+
+_cors_allow_all_origins_env = os.environ.get("CORS_ALLOW_ALL_ORIGINS", "")
+if _cors_allow_all_origins_env.lower() in {"1", "true", "yes"}:
+    CORS_ALLOW_ALL_ORIGINS = True
+
 
 # Resend email
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
