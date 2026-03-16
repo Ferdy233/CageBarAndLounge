@@ -335,11 +335,34 @@ Notes: {notes or 'None'}
 Cage Bar and Lounge Management System
 """
                 email_sent, email_status = send_resend_email(subject, message, admin_emails)
-                if email_sent:
-                    report.email_sent = True
-                    report.save(update_fields=["email_sent"])
+                if not email_sent:
+                    logger.warning(
+                        "EOD report rollback: email send failed date=%s submitted_by=%s status=%s recipients=%s",
+                        today,
+                        request.user.username,
+                        email_status,
+                        admin_emails,
+                    )
+                    raise ValidationError(
+                        {
+                            "detail": (
+                                "Report not saved because email was not sent "
+                                f"({email_status})."
+                            )
+                        }
+                    )
+                report.email_sent = True
+                report.save(update_fields=["email_sent"])
             else:
                 email_status = "no_admin_recipients"
+                logger.warning(
+                    "EOD report rollback: no admin recipients date=%s submitted_by=%s",
+                    today,
+                    request.user.username,
+                )
+                raise ValidationError(
+                    {"detail": "Report not saved because no admin recipient emails were found."}
+                )
 
             logger.info(
                 "EOD email delivery result: date=%s submitted_by=%s sent=%s status=%s recipients=%s",
