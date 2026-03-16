@@ -55,6 +55,8 @@ def send_resend_email(subject: str, message: str, to_emails: list[str]) -> tuple
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "CageBarAndLounge/1.0 (+https://www.cagebarandlounge.com)",
         },
         method="POST",
     )
