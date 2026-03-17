@@ -13,7 +13,7 @@ type ApiCategory = {
 type ApiInventoryItem = {
   id: number;
   name: string;
-  cost_price: string | number;
+  cost_price?: string | number;
   selling_price: string | number;
   quantity: number;
   min_stock_threshold: number;
@@ -28,7 +28,7 @@ type ApiSaleItem = {
   item: number;
   item_name: string;
   quantity: number;
-  cost_price: string | number;
+  cost_price?: string | number;
   selling_price: string | number;
 };
 
@@ -56,7 +56,7 @@ type ApiSaleItemCreateResponse = {
   item: number;
   item_name: string;
   quantity: number;
-  cost_price: string | number;
+  cost_price?: string | number;
   selling_price: string | number;
 };
 
@@ -70,10 +70,12 @@ type ApiUser = {
 };
 
 function mapInventoryFromApi(item: ApiInventoryItem): InventoryItem {
+  const rawCostPrice = item.cost_price ?? 0;
+  const parsedCostPrice = typeof rawCostPrice === "string" ? parseFloat(rawCostPrice) : rawCostPrice;
   return {
     id: String(item.id),
     name: item.name,
-    costPrice: typeof item.cost_price === "string" ? parseFloat(item.cost_price) : item.cost_price,
+    costPrice: parsedCostPrice,
     sellingPrice: typeof item.selling_price === "string" ? parseFloat(item.selling_price) : item.selling_price,
     quantity: item.quantity,
     minStockThreshold: item.min_stock_threshold,
@@ -113,16 +115,18 @@ function mapInventoryToApi(
 }
 
 function mapSaleItemFromApi(item: ApiSaleItem): SaleItem {
-  const costPrice = typeof item.cost_price === "string" ? parseFloat(item.cost_price) : item.cost_price;
+  const hasCostPrice = item.cost_price !== undefined && item.cost_price !== null;
+  const rawCostPrice = item.cost_price ?? 0;
+  const normalizedCostPrice = typeof rawCostPrice === "string" ? parseFloat(rawCostPrice) : rawCostPrice;
   const sellingPrice = typeof item.selling_price === "string" ? parseFloat(item.selling_price) : item.selling_price;
   const totalPrice = sellingPrice * item.quantity;
-  const profit = (sellingPrice - costPrice) * item.quantity;
+  const profit = hasCostPrice ? (sellingPrice - normalizedCostPrice) * item.quantity : 0;
 
   return {
     itemId: String(item.item),
     itemName: item.item_name,
     quantity: item.quantity,
-    costPrice,
+    costPrice: normalizedCostPrice,
     sellingPrice,
     totalPrice,
     profit,
@@ -352,7 +356,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
             sale: createdSale.id,
             item: Number(i.itemId),
             quantity: i.quantity,
-            cost_price: i.costPrice,
             selling_price: i.sellingPrice,
           },
         })

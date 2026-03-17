@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import { SaleItem } from '@/types';
 
 export function Sales() {
   const { inventory, addSale, sales } = useData();
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [search, setSearch] = useState('');
@@ -98,7 +100,7 @@ export function Sales() {
                 ))}
                 <div className="border-t border-border pt-4 space-y-2">
                   <div className="flex justify-between"><span>Total</span><span className="font-bold">{formatCurrency(cartTotal)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Profit</span><span className="text-success">{formatCurrency(cartProfit)}</span></div>
+                  {isAdmin && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Profit</span><span className="text-success">{formatCurrency(cartProfit)}</span></div>}
                 </div>
                 <Button className="w-full gradient-gold text-primary-foreground" onClick={completeSale}>Complete Sale</Button>
               </>
@@ -111,7 +113,7 @@ export function Sales() {
         <CardHeader><CardTitle>Recent Sales</CardTitle></CardHeader>
         <CardContent>
           <Table>
-            <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Items</TableHead><TableHead>Staff</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="text-right">Profit</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Items</TableHead><TableHead>Staff</TableHead><TableHead className="text-right">Total</TableHead>{isAdmin && <TableHead className="text-right">Profit</TableHead>}</TableRow></TableHeader>
             <TableBody>
               {sales.slice(0, 10).map((sale) => (
                 <TableRow key={sale.id}>
@@ -119,7 +121,7 @@ export function Sales() {
                   <TableCell>{sale.items.map((i) => `${i.itemName} (${i.quantity})`).join(', ')}</TableCell>
                   <TableCell>{sale.staffName}</TableCell>
                   <TableCell className="text-right">{formatCurrency(sale.totalAmount)}</TableCell>
-                  <TableCell className="text-right text-success">{formatCurrency(sale.totalProfit)}</TableCell>
+                  {isAdmin && <TableCell className="text-right text-success">{formatCurrency(sale.totalProfit)}</TableCell>}
                 </TableRow>
               ))}
             </TableBody>

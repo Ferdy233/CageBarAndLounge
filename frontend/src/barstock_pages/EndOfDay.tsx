@@ -15,7 +15,7 @@ import { formatCurrency } from '@/lib/utils';
 interface EODPreview {
   date: string;
   total_sales: number;
-  total_profit: number;
+  total_profit?: number;
   total_transactions: number;
   items_sold: number;
 }
@@ -25,7 +25,7 @@ interface EODReport {
   date: string;
   submitted_by_name: string;
   total_sales: string;
-  total_profit: string;
+  total_profit?: string;
   total_transactions: number;
   items_sold: number;
   notes: string;
@@ -48,7 +48,7 @@ interface TodayStatus {
 }
 
 export function EndOfDay() {
-  const { canSubmitEOD } = useAuth();
+  const { canSubmitEOD, isAdmin } = useAuth();
   const { toast } = useToast();
   const [status, setStatus] = useState<TodayStatus | null>(null);
   const [notes, setNotes] = useState('');
@@ -144,11 +144,13 @@ export function EndOfDay() {
                 <p className="text-sm text-muted-foreground">Total Sales</p>
                 <p className="text-lg font-bold">{formatCurrency(parseFloat(report.total_sales))}</p>
               </div>
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <TrendingUp className="w-5 h-5 mx-auto mb-1 text-success" />
-                <p className="text-sm text-muted-foreground">Total Profit</p>
-                <p className="text-lg font-bold text-success">{formatCurrency(parseFloat(report.total_profit))}</p>
-              </div>
+              {isAdmin && (
+                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                  <TrendingUp className="w-5 h-5 mx-auto mb-1 text-success" />
+                  <p className="text-sm text-muted-foreground">Total Profit</p>
+                  <p className="text-lg font-bold text-success">{formatCurrency(parseFloat(report.total_profit ?? '0'))}</p>
+                </div>
+              )}
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <ShoppingCart className="w-5 h-5 mx-auto mb-1 text-primary" />
                 <p className="text-sm text-muted-foreground">Transactions</p>
@@ -183,17 +185,19 @@ export function EndOfDay() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className={`grid grid-cols-2 ${isAdmin ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <DollarSign className="w-5 h-5 mx-auto mb-1 text-primary" />
                   <p className="text-sm text-muted-foreground">Total Sales</p>
                   <p className="text-lg font-bold">{formatCurrency(preview?.total_sales ?? 0)}</p>
                 </div>
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <TrendingUp className="w-5 h-5 mx-auto mb-1 text-success" />
-                  <p className="text-sm text-muted-foreground">Total Profit</p>
-                  <p className="text-lg font-bold text-success">{formatCurrency(preview?.total_profit ?? 0)}</p>
-                </div>
+                {isAdmin && (
+                  <div className="text-center p-4 bg-muted/50 rounded-lg">
+                    <TrendingUp className="w-5 h-5 mx-auto mb-1 text-success" />
+                    <p className="text-sm text-muted-foreground">Total Profit</p>
+                    <p className="text-lg font-bold text-success">{formatCurrency(preview?.total_profit ?? 0)}</p>
+                  </div>
+                )}
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <ShoppingCart className="w-5 h-5 mx-auto mb-1 text-primary" />
                   <p className="text-sm text-muted-foreground">Transactions</p>

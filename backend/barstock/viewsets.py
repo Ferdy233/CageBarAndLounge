@@ -229,16 +229,18 @@ class SaleItemViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         with transaction.atomic():
-            sale_item = serializer.save()
-            item = sale_item.item
+            item = serializer.validated_data["item"]
+            quantity = serializer.validated_data["quantity"]
 
-            if sale_item.quantity <= 0:
+            if quantity <= 0:
                 raise ValidationError({"quantity": "Quantity must be greater than 0."})
 
-            if item.quantity < sale_item.quantity:
+            if item.quantity < quantity:
                 raise ValidationError({"quantity": f"Not enough stock for {item.name}."})
 
-            item.quantity = item.quantity - sale_item.quantity
+            sale_item = serializer.save(cost_price=item.cost_price)
+
+            item.quantity = item.quantity - quantity
             item.save(update_fields=["quantity", "updated_at"])
 
 
@@ -387,6 +389,9 @@ Cage Bar and Lounge Management System
     @action(detail=False, methods=["get"], url_path="today")
     def today_status(self, request):
         today = timezone.localdate()
+        user = getattr(request, "user", None)
+        staff_profile = getattr(user, "staff_profile", None)
+        is_admin = bool(staff_profile and staff_profile.role == StaffProfile.Role.ADMIN)
         report = EndOfDayReport.objects.filter(date=today).first()
         if report:
             serializer = self.get_serializer(report)
@@ -406,8 +411,8 @@ Cage Bar and Lounge Management System
             "preview": {
                 "date": today.isoformat(),
                 "total_sales": float(total_revenue),
-                "total_profit": float(total_profit),
                 "total_transactions": total_transactions,
                 "items_sold": items_sold,
+                **({"total_profit": float(total_profit)} if is_admin else {}),
             }
         })

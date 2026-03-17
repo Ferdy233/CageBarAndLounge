@@ -43,6 +43,16 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        staff_profile = getattr(user, "staff_profile", None)
+        is_admin = bool(staff_profile and staff_profile.role == StaffProfile.Role.ADMIN)
+        if not is_admin:
+            data.pop("cost_price", None)
+        return data
+
 
 class SaleItemSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.name", read_only=True)
@@ -51,6 +61,19 @@ class SaleItemSerializer(serializers.ModelSerializer):
         model = SaleItem
         fields = ["id", "sale", "item", "item_name", "quantity", "cost_price", "selling_price"]
         read_only_fields = ["id"]
+        extra_kwargs = {
+            "cost_price": {"required": False},
+        }
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        staff_profile = getattr(user, "staff_profile", None)
+        is_admin = bool(staff_profile and staff_profile.role == StaffProfile.Role.ADMIN)
+        if not is_admin:
+            data.pop("cost_price", None)
+        return data
 
 
 class SaleSerializer(serializers.ModelSerializer):
@@ -125,3 +148,13 @@ class EndOfDayReportSerializer(serializers.ModelSerializer):
     def get_submitted_by_name(self, obj: EndOfDayReport) -> str:
         full_name = obj.submitted_by.get_full_name()
         return full_name or obj.submitted_by.username
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        staff_profile = getattr(user, "staff_profile", None)
+        is_admin = bool(staff_profile and staff_profile.role == StaffProfile.Role.ADMIN)
+        if not is_admin:
+            data.pop("total_profit", None)
+        return data
