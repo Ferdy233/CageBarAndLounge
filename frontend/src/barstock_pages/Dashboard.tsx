@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/utils';
 export function Dashboard() {
   const { user } = useAuth();
   const { inventory, sales, notifications } = useData();
+  const isAdmin = user?.role === 'admin';
 
   const todayStats = useMemo(() => {
     const today = new Date().toDateString();
@@ -121,22 +122,39 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Today's Profit
-            </CardTitle>
-            <TrendingUp className="w-4 h-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">
-              {formatCurrency(todayStats.profit)}
-            </div>
-            <div className="flex items-center text-xs text-muted-foreground mt-1">
-              {todayStats.itemsSold} items sold
-            </div>
-          </CardContent>
-        </Card>
+        {isAdmin ? (
+          <Card className="glass-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Today's Profit
+              </CardTitle>
+              <TrendingUp className="w-4 h-4 text-success" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-success">
+                {formatCurrency(todayStats.profit)}
+              </div>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                {todayStats.itemsSold} items sold
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="glass-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Items Sold
+              </CardTitle>
+              <ShoppingCart className="w-4 h-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{todayStats.itemsSold}</div>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                Across {todayStats.salesCount} transactions
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="glass-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -188,7 +206,9 @@ export function Dashboard() {
         <Card className="glass-card lg:col-span-2">
           <CardHeader>
             <CardTitle>Weekly Performance</CardTitle>
-            <CardDescription>Revenue and profit over the last 7 days</CardDescription>
+            <CardDescription>
+              {isAdmin ? 'Revenue and profit over the last 7 days' : 'Revenue over the last 7 days'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -207,7 +227,7 @@ export function Dashboard() {
                     formatter={(value) => formatCurrency(Number(value ?? 0))}
                   />
                   <Bar dataKey="revenue" name="Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="profit" name="Profit" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                  {isAdmin && <Bar dataKey="profit" name="Profit" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />}
                 </BarChart>
               </ResponsiveContainer>
             </div>

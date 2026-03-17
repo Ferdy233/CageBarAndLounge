@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +12,6 @@ import { SaleItem } from '@/types';
 
 export function Sales() {
   const { inventory, addSale, sales } = useData();
-  const { user } = useAuth();
   const { toast } = useToast();
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [search, setSearch] = useState('');
@@ -49,7 +47,7 @@ export function Sales() {
   const completeSale = async () => {
     if (cart.length === 0) return;
     try {
-      await addSale(cart, user?.staffId || '', user?.name || '');
+      await addSale(cart, '', '');
       setCart([]);
       toast({ title: 'Sale completed!', description: `Total: ${formatCurrency(cart.reduce((s, i) => s + i.totalPrice, 0))}` });
     } catch (err) {
