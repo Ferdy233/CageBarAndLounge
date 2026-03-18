@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Dialog, DialogContent, DialogHeader, DialogTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, Badge, DialogTrigger } from '@/components/ui';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Search, Edit, Trash2, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
@@ -21,7 +15,7 @@ export function Inventory() {
   const [search, setSearch] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
-  const [formData, setFormData] = useState({ name: '', costPrice: '', sellingPrice: '', quantity: '', minStockThreshold: '', category: '' });
+  const [formData, setFormData] = useState({ name: '', costPrice: '', sellingPrice: '', quantity: '', minStockThreshold: '', category: '', unitsPerItem: '1', isCarton: false });
 
   const filteredInventory = inventory.filter((item) => item.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -34,6 +28,8 @@ export function Inventory() {
       quantity: parseInt(formData.quantity),
       minStockThreshold: parseInt(formData.minStockThreshold),
       category: formData.category,
+      unitsPerItem: parseInt(formData.unitsPerItem),
+      isCarton: formData.isCarton,
     };
 
     try {
@@ -55,7 +51,7 @@ export function Inventory() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', costPrice: '', sellingPrice: '', quantity: '', minStockThreshold: '', category: '' });
+    setFormData({ name: '', costPrice: '', sellingPrice: '', quantity: '', minStockThreshold: '', category: '', unitsPerItem: '1', isCarton: false });
     setEditItem(null);
     setIsAddOpen(false);
   };
@@ -69,6 +65,8 @@ export function Inventory() {
       quantity: item.quantity.toString(),
       minStockThreshold: item.minStockThreshold.toString(),
       category: item.category,
+      unitsPerItem: item.unitsPerItem.toString(),
+      isCarton: item.isCarton,
     });
     setIsAddOpen(true);
   };
@@ -106,7 +104,12 @@ export function Inventory() {
                   <div><Label>Cost Price (GH₵)</Label><Input type="number" step="0.01" value={formData.costPrice} onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })} required /></div>
                   <div><Label>Selling Price (GH₵)</Label><Input type="number" step="0.01" value={formData.sellingPrice} onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })} required /></div>
                   <div><Label>Quantity</Label><Input type="number" value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: e.target.value })} required /></div>
+                  <div><Label>Units Per Item</Label><Input type="number" min="1" value={formData.unitsPerItem} onChange={(e) => setFormData({ ...formData, unitsPerItem: e.target.value })} required /></div>
                   <div><Label>Min Stock</Label><Input type="number" value={formData.minStockThreshold} onChange={(e) => setFormData({ ...formData, minStockThreshold: e.target.value })} required /></div>
+                  <div className="col-span-2 flex items-center space-x-2">
+                    <Checkbox id="isCarton" checked={formData.isCarton} onCheckedChange={(checked: boolean) => setFormData({ ...formData, isCarton: checked })} />
+                    <Label htmlFor="isCarton">Sold by carton/multi-unit package</Label>
+                  </div>
                   <div className="col-span-2">
                     <Label>Category</Label>
                     <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
@@ -141,7 +144,7 @@ export function Inventory() {
                   <TableCell className="text-right">{formatCurrency(item.sellingPrice)}</TableCell>
                   <TableCell className="text-right"><Badge variant={item.quantity === 0 ? 'destructive' : item.quantity <= item.minStockThreshold ? 'secondary' : 'default'} className={item.quantity > item.minStockThreshold ? 'bg-success/20 text-success' : ''}>{item.quantity}</Badge></TableCell>
                   {isAdmin && <TableCell className="text-right text-success">{formatCurrency(item.sellingPrice - item.costPrice)}</TableCell>}
-                  {isAdmin && <TableCell className="text-right text-success">{formatCurrency((item.sellingPrice - item.costPrice) * item.quantity)}</TableCell>}
+                  {isAdmin && <TableCell className="text-right text-success">{formatCurrency((item.sellingPrice - item.costPrice) * item.quantity * item.unitsPerItem)}</TableCell>}
                   {isAdmin && <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Edit className="w-4 h-4" /></Button><Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>}
                 </TableRow>
               ))}

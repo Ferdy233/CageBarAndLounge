@@ -38,6 +38,8 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "quantity",
             "min_stock_threshold",
             "category",
+            "units_per_item",
+            "is_carton",
             "created_at",
             "updated_at",
         ]

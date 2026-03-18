@@ -16,6 +16,8 @@ export interface InventoryItem {
   quantity: number;
   minStockThreshold: number;
   category: string;
+  unitsPerItem: number;
+  isCarton: boolean;
   createdAt: string;
   updatedAt: string;
 }

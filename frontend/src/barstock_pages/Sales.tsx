@@ -32,9 +32,9 @@ export function Sales() {
     }
 
     if (existing) {
-      setCart(cart.map((c) => c.itemId === itemId ? { ...c, quantity: c.quantity + 1, totalPrice: (c.quantity + 1) * c.sellingPrice, profit: (c.quantity + 1) * (c.sellingPrice - c.costPrice) } : c));
+      setCart(cart.map((c) => c.itemId === itemId ? { ...c, quantity: c.quantity + 1, totalPrice: (c.quantity + 1) * c.sellingPrice, profit: (c.quantity + 1) * (c.sellingPrice - c.costPrice) * item.unitsPerItem } : c));
     } else {
-      setCart([...cart, { itemId, itemName: item.name, quantity: 1, costPrice: item.costPrice, sellingPrice: item.sellingPrice, totalPrice: item.sellingPrice, profit: item.sellingPrice - item.costPrice }]);
+      setCart([...cart, { itemId, itemName: item.name, quantity: 1, costPrice: item.costPrice, sellingPrice: item.sellingPrice, totalPrice: item.sellingPrice, profit: (item.sellingPrice - item.costPrice) * item.unitsPerItem }]);
     }
   };
 
@@ -42,7 +42,7 @@ export function Sales() {
     setCart(cart.map((c) => {
       if (c.itemId !== itemId) return c;
       const newQty = Math.max(0, c.quantity + delta);
-      return newQty === 0 ? null : { ...c, quantity: newQty, totalPrice: newQty * c.sellingPrice, profit: newQty * (c.sellingPrice - c.costPrice) };
+      return newQty === 0 ? null : { ...c, quantity: newQty, totalPrice: newQty * c.sellingPrice, profit: newQty * (c.sellingPrice - c.costPrice) * (inventory.find(i => i.id === itemId)?.unitsPerItem || 1) };
     }).filter(Boolean) as SaleItem[]);
   };
 

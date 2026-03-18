@@ -38,6 +38,8 @@ class InventoryItem(models.Model):
     quantity = models.IntegerField(default=0)
     min_stock_threshold = models.IntegerField(default=0)
     category = models.CharField(max_length=100, blank=True)
+    units_per_item = models.IntegerField(default=1, help_text="Number of individual units in one inventory item (e.g., units per carton/bottle)")
+    is_carton = models.BooleanField(default=False, help_text="Whether this item is sold by carton/multi-unit package")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

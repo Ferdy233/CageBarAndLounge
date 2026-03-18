@@ -18,6 +18,8 @@ type ApiInventoryItem = {
   quantity: number;
   min_stock_threshold: number;
   category: string;
+  units_per_item?: number;
+  is_carton?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -80,6 +82,8 @@ function mapInventoryFromApi(item: ApiInventoryItem): InventoryItem {
     quantity: item.quantity,
     minStockThreshold: item.min_stock_threshold,
     category: item.category,
+    unitsPerItem: item.units_per_item ?? 1,
+    isCarton: item.is_carton ?? false,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   };
