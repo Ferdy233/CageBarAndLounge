@@ -131,7 +131,7 @@ export function Inventory() {
       <Card className="glass-card">
         <CardContent className="p-0">
           <Table>
-            <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Category</TableHead>{isAdmin && <TableHead className="text-right">Cost</TableHead>}<TableHead className="text-right">Price</TableHead><TableHead className="text-right">Stock</TableHead>{isAdmin && <TableHead className="text-right">Profit/Unit</TableHead>}{isAdmin && <TableHead className="text-right">Actions</TableHead>}</TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Category</TableHead>{isAdmin && <TableHead className="text-right">Cost</TableHead>}<TableHead className="text-right">Price</TableHead><TableHead className="text-right">Stock</TableHead>{isAdmin && <TableHead className="text-right">Total Profit</TableHead>}{isAdmin && <TableHead className="text-right">Actions</TableHead>}</TableRow></TableHeader>
             <TableBody>
               {filteredInventory.map((item) => (
                 <TableRow key={item.id}>
@@ -140,7 +140,7 @@ export function Inventory() {
                   {isAdmin && <TableCell className="text-right">{formatCurrency(item.costPrice)}</TableCell>}
                   <TableCell className="text-right">{formatCurrency(item.sellingPrice)}</TableCell>
                   <TableCell className="text-right"><Badge variant={item.quantity === 0 ? 'destructive' : item.quantity <= item.minStockThreshold ? 'secondary' : 'default'} className={item.quantity > item.minStockThreshold ? 'bg-success/20 text-success' : ''}>{item.quantity}</Badge></TableCell>
-                  {isAdmin && <TableCell className="text-right text-success">{formatCurrency(item.sellingPrice - item.costPrice)}</TableCell>}
+                  {isAdmin && <TableCell className="text-right text-success">{formatCurrency((item.sellingPrice - item.costPrice) * item.quantity)}</TableCell>}
                   {isAdmin && <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Edit className="w-4 h-4" /></Button><Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>}
                 </TableRow>
               ))}
