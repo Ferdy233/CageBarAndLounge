@@ -141,7 +141,7 @@ export function Inventory() {
                   <TableCell className="font-medium"><div className="flex items-center gap-2"><Package className="w-4 h-4 text-primary" />{item.name}</div></TableCell>
                   <TableCell><Badge variant="secondary">{item.category}</Badge></TableCell>
                   {isAdmin && <TableCell className="text-right">{formatCurrency(item.costPrice)}</TableCell>}
-                  <TableCell className="text-right">{formatCurrency(item.sellingPrice)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(item.isCarton ? item.sellingPrice / item.unitsPerItem : item.sellingPrice)}</TableCell>
                   <TableCell className="text-right"><Badge variant={item.quantity === 0 ? 'destructive' : item.quantity <= item.minStockThreshold ? 'secondary' : 'default'} className={item.quantity > item.minStockThreshold ? 'bg-success/20 text-success' : ''}>{item.quantity}</Badge></TableCell>
                   {isAdmin && <TableCell className="text-right text-success">{formatCurrency(item.sellingPrice - item.costPrice)}</TableCell>}
                   {isAdmin && <TableCell className="text-right text-success">{formatCurrency((item.sellingPrice - item.costPrice) * item.quantity * item.unitsPerItem)}</TableCell>}

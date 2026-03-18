@@ -31,10 +31,13 @@ export function Sales() {
       return;
     }
 
+    const unitSellingPrice = item.isCarton ? item.sellingPrice / item.unitsPerItem : item.sellingPrice;
+    const unitCostPrice = item.isCarton ? item.costPrice / item.unitsPerItem : item.costPrice;
+
     if (existing) {
-      setCart(cart.map((c) => c.itemId === itemId ? { ...c, quantity: c.quantity + 1, totalPrice: (c.quantity + 1) * c.sellingPrice, profit: (c.quantity + 1) * (c.sellingPrice - c.costPrice) * item.unitsPerItem } : c));
+      setCart(cart.map((c) => c.itemId === itemId ? { ...c, quantity: c.quantity + 1, totalPrice: (c.quantity + 1) * unitSellingPrice, profit: (c.quantity + 1) * (unitSellingPrice - unitCostPrice) } : c));
     } else {
-      setCart([...cart, { itemId, itemName: item.name, quantity: 1, costPrice: item.costPrice, sellingPrice: item.sellingPrice, totalPrice: item.sellingPrice, profit: (item.sellingPrice - item.costPrice) * item.unitsPerItem }]);
+      setCart([...cart, { itemId, itemName: item.name, quantity: 1, costPrice: unitCostPrice, sellingPrice: unitSellingPrice, totalPrice: unitSellingPrice, profit: unitSellingPrice - unitCostPrice }]);
     }
   };
 
@@ -42,7 +45,7 @@ export function Sales() {
     setCart(cart.map((c) => {
       if (c.itemId !== itemId) return c;
       const newQty = Math.max(0, c.quantity + delta);
-      return newQty === 0 ? null : { ...c, quantity: newQty, totalPrice: newQty * c.sellingPrice, profit: newQty * (c.sellingPrice - c.costPrice) * (inventory.find(i => i.id === itemId)?.unitsPerItem || 1) };
+      return newQty === 0 ? null : { ...c, quantity: newQty, totalPrice: newQty * c.sellingPrice, profit: newQty * (c.sellingPrice - c.costPrice) };
     }).filter(Boolean) as SaleItem[]);
   };
 
@@ -76,7 +79,7 @@ export function Sales() {
               <Card key={item.id} className="glass-card cursor-pointer hover:border-primary/50 transition-colors" onClick={() => addToCart(item.id)}>
                 <CardContent className="p-4">
                   <p className="font-medium truncate">{item.name}</p>
-                  <div className="flex justify-between mt-2"><span className="text-primary font-bold">{formatCurrency(item.sellingPrice)}</span><Badge variant="secondary">{item.quantity}</Badge></div>
+                  <div className="flex justify-between mt-2"><span className="text-primary font-bold">{formatCurrency(item.isCarton ? item.sellingPrice / item.unitsPerItem : item.sellingPrice)}</span><Badge variant="secondary">{item.quantity}</Badge></div>
                 </CardContent>
               </Card>
             ))}
