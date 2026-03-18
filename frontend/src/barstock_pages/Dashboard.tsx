@@ -47,7 +47,7 @@ export function Dashboard() {
     );
     const outOfStock = inventory.filter((item) => item.quantity === 0);
     const totalValue = inventory.reduce(
-      (sum, item) => sum + item.costPrice * item.quantity,
+      (sum, item) => sum + item.sellingPrice * item.quantity,
       0
     );
 
