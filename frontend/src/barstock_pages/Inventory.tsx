@@ -9,7 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import { InventoryItem } from '@/types';
 
 export function Inventory() {
-  const { inventory, addInventoryItem, updateInventoryItem, deleteInventoryItem, categories } = useData();
+  const { inventory, addInventoryItem, updateInventoryItem, deleteInventoryItem, categories, refreshData } = useData();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
@@ -36,9 +36,11 @@ export function Inventory() {
       if (editItem) {
         await updateInventoryItem(editItem.id, data);
         toast({ title: 'Item updated successfully' });
+        refreshData();
       } else {
         await addInventoryItem(data);
         toast({ title: 'Item added successfully' });
+        refreshData();
       }
       resetForm();
     } catch (err) {

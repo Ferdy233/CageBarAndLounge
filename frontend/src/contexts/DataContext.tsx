@@ -102,10 +102,10 @@ function mapUserFromApi(u: ApiUser): User {
 
 function mapInventoryToApi(
   item: Partial<InventoryItem>
-): Partial<Pick<ApiInventoryItem, "name" | "cost_price" | "selling_price" | "quantity" | "min_stock_threshold" | "category">> {
+): Partial<Pick<ApiInventoryItem, "name" | "cost_price" | "selling_price" | "quantity" | "min_stock_threshold" | "category" | "units_per_item" | "is_carton">> {
   const mapped: Partial<Pick<
     ApiInventoryItem,
-    "name" | "cost_price" | "selling_price" | "quantity" | "min_stock_threshold" | "category"
+    "name" | "cost_price" | "selling_price" | "quantity" | "min_stock_threshold" | "category" | "units_per_item" | "is_carton"
   >> = {};
 
   if (item.name !== undefined) mapped.name = item.name;
@@ -114,6 +114,8 @@ function mapInventoryToApi(
   if (item.quantity !== undefined) mapped.quantity = item.quantity;
   if (item.minStockThreshold !== undefined) mapped.min_stock_threshold = item.minStockThreshold;
   if (item.category !== undefined) mapped.category = item.category;
+  if (item.unitsPerItem !== undefined) mapped.units_per_item = item.unitsPerItem;
+  if (item.isCarton !== undefined) mapped.is_carton = item.isCarton;
 
   return mapped;
 }
