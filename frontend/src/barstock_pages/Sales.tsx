@@ -10,13 +10,16 @@ import { Plus, Minus, ShoppingCart, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import { SaleItem } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function Sales() {
-  const { inventory, addSale, sales } = useData();
+  const { inventory, addSale, updateSalePayment, sales } = useData();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [search, setSearch] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [pendingPayment, setPendingPayment] = useState(false);
 
   const filteredInventory = inventory.filter((item) => item.name.toLowerCase().includes(search.toLowerCase()) && item.quantity > 0);
 
@@ -52,9 +55,15 @@ export function Sales() {
   const completeSale = async () => {
     if (cart.length === 0) return;
     try {
-      await addSale(cart, '', '');
+      const isPending = paymentMethod === 'pending' || pendingPayment;
+      await addSale(cart, '', '', paymentMethod, isPending ? 'pending' : 'paid');
       setCart([]);
-      toast({ title: 'Sale completed!', description: `Total: ${formatCurrency(cart.reduce((s, i) => s + i.totalPrice, 0))}` });
+      setPaymentMethod('cash');
+      setPendingPayment(false);
+      toast({ 
+        title: isPending ? 'Sale recorded - Payment pending!' : 'Sale completed!', 
+        description: `Total: ${formatCurrency(cart.reduce((s, i) => s + i.totalPrice, 0))}` 
+      });
     } catch (err) {
       toast({
         title: 'Sale failed',
@@ -66,6 +75,19 @@ export function Sales() {
 
   const cartTotal = cart.reduce((s, i) => s + i.totalPrice, 0);
   const cartProfit = cart.reduce((s, i) => s + i.profit, 0);
+
+  const handleMarkAsPaid = async (saleId: string) => {
+    try {
+      await updateSalePayment(saleId, 'cash', 'paid');
+      toast({ title: 'Payment marked as paid!' });
+    } catch (err) {
+      toast({
+        title: 'Failed to update payment',
+        description: err instanceof Error ? err.message : 'Request failed',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -101,11 +123,28 @@ export function Sales() {
                     </div>
                   </div>
                 ))}
-                <div className="border-t border-border pt-4 space-y-2">
+                <div className="border-t border-border pt-4 space-y-4">
                   <div className="flex justify-between"><span>Total</span><span className="font-bold">{formatCurrency(cartTotal)}</span></div>
                   {isAdmin && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Profit</span><span className="text-success">{formatCurrency(cartProfit)}</span></div>}
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Payment Method</label>
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="momo">Mobile Money</SelectItem>
+                        <SelectItem value="pending">Pending (Pay Later)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Button className="w-full gradient-gold text-primary-foreground" onClick={completeSale}>
+                    {paymentMethod === 'pending' ? 'Record Sale (Payment Pending)' : 'Complete Sale'}
+                  </Button>
                 </div>
-                <Button className="w-full gradient-gold text-primary-foreground" onClick={completeSale}>Complete Sale</Button>
               </>
             )}
           </CardContent>
@@ -116,15 +155,32 @@ export function Sales() {
         <CardHeader><CardTitle>Recent Sales</CardTitle></CardHeader>
         <CardContent>
           <Table>
-            <TableHeader><TableRow><TableHead>Date & Time</TableHead><TableHead>Items</TableHead><TableHead>Staff</TableHead><TableHead className="text-right">Total</TableHead>{isAdmin && <TableHead className="text-right">Profit</TableHead>}</TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Date & Time</TableHead><TableHead>Items</TableHead><TableHead>Staff</TableHead><TableHead>Payment</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead>{isAdmin && <TableHead className="text-right">Profit</TableHead>}{isAdmin && <TableHead className="text-right">Actions</TableHead>}</TableRow></TableHeader>
             <TableBody>
               {sales.slice(0, 10).map((sale) => (
                 <TableRow key={sale.id}>
                   <TableCell>{new Date(sale.createdAt).toLocaleString()}</TableCell>
                   <TableCell>{sale.items.map((i) => `${i.itemName} (${i.quantity})`).join(', ')}</TableCell>
                   <TableCell>{sale.staffName}</TableCell>
+                  <TableCell>
+                    <Badge variant={sale.paymentMethod === 'cash' ? 'default' : sale.paymentMethod === 'momo' ? 'secondary' : 'outline'}>
+                      {sale.paymentMethod === 'cash' ? 'Cash' : sale.paymentMethod === 'momo' ? 'Mobile Money' : 'Pending'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={sale.paymentStatus === 'paid' ? 'default' : 'destructive'}>
+                      {sale.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right">{formatCurrency(sale.totalAmount)}</TableCell>
                   {isAdmin && <TableCell className="text-right text-success">{formatCurrency(sale.totalProfit)}</TableCell>}
+                  {isAdmin && sale.paymentStatus === 'pending' && (
+                    <TableCell className="text-right">
+                      <Button size="sm" onClick={() => handleMarkAsPaid(sale.id)}>
+                        Mark as Paid
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

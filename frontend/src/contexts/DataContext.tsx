@@ -39,8 +39,12 @@ type ApiSale = {
   staff: number;
   staff_id: string;
   staff_name: string;
+  payment_method: string;
+  payment_status: string;
   created_at: string;
   items: ApiSaleItem[];
+  total_amount?: string | number;
+  total_profit?: string | number;
 };
 
 type ApiSaleCreateResponse = {
@@ -141,14 +145,16 @@ function mapSaleItemFromApi(item: ApiSaleItem): SaleItem {
 
 function mapSaleFromApi(sale: ApiSale): Sale {
   const items = (sale.items ?? []).map(mapSaleItemFromApi);
-  const totalAmount = items.reduce((sum, i) => sum + i.totalPrice, 0);
-  const totalProfit = items.reduce((sum, i) => sum + i.profit, 0);
+  const totalAmount = sale.total_amount ? (typeof sale.total_amount === "string" ? parseFloat(sale.total_amount) : sale.total_amount) : items.reduce((sum, i) => sum + i.totalPrice, 0);
+  const totalProfit = sale.total_profit ? (typeof sale.total_profit === "string" ? parseFloat(sale.total_profit) : sale.total_profit) : items.reduce((sum, i) => sum + i.profit, 0);
 
   return {
     id: String(sale.id),
     items,
     totalAmount,
     totalProfit,
+    paymentMethod: sale.payment_method as 'cash' | 'momo' | 'pending',
+    paymentStatus: sale.payment_status as 'paid' | 'pending',
     staffId: sale.staff_id,
     staffName: sale.staff_name,
     createdAt: sale.created_at,
@@ -164,7 +170,8 @@ interface DataContextType {
   
   // Sales
   sales: Sale[];
-  addSale: (items: SaleItem[], staffId: string, staffName: string) => Promise<void>;
+  addSale: (items: SaleItem[], staffId: string, staffName: string, paymentMethod?: string, paymentStatus?: string) => Promise<void>;
+  updateSalePayment: (saleId: string, paymentMethod: string, paymentStatus: string) => Promise<void>;
   
   // Notifications
   notifications: Notification[];
@@ -346,12 +353,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   // Sales functions
-  const addSale = async (items: SaleItem[], _staffId: string, _staffName: string) => {
+  const addSale = async (items: SaleItem[], _staffId: string, _staffName: string, paymentMethod?: string, paymentStatus?: string) => {
     if (items.length === 0) return;
 
     const createdSale = await apiFetchAuth<ApiSaleCreateResponse>("/api/sales/", {
       method: "POST",
-      body: {},
+      body: {
+        payment_method: paymentMethod || 'cash',
+        payment_status: paymentStatus || 'paid',
+      },
     });
 
     await Promise.all(
@@ -368,6 +378,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
       )
     );
 
+    refreshData();
+  };
+
+  const updateSalePayment = async (saleId: string, paymentMethod: string, paymentStatus: string) => {
+    await apiFetchAuth<ApiSale>(`/api/sales/${saleId}/`, {
+      method: "PATCH",
+      body: {
+        payment_method: paymentMethod,
+        payment_status: paymentStatus,
+      },
+    });
     refreshData();
   };
 
@@ -446,6 +467,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         deleteInventoryItem,
         sales,
         addSale,
+        updateSalePayment,
         notifications,
         markNotificationRead,
         clearNotifications,

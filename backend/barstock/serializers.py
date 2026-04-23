@@ -82,15 +82,23 @@ class SaleSerializer(serializers.ModelSerializer):
     items = SaleItemSerializer(many=True, read_only=True)
     staff_id = serializers.CharField(source="staff.staff_profile.staff_id", read_only=True)
     staff_name = serializers.SerializerMethodField()
+    total_amount = serializers.SerializerMethodField()
+    total_profit = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
-        fields = ["id", "staff", "staff_id", "staff_name", "created_at", "items"]
+        fields = ["id", "staff", "staff_id", "staff_name", "payment_method", "payment_status", "created_at", "items", "total_amount", "total_profit"]
         read_only_fields = ["id", "created_at", "staff"]
 
     def get_staff_name(self, obj: Sale) -> str:
         full_name = obj.staff.get_full_name()
         return full_name or obj.staff.username
+
+    def get_total_amount(self, obj: Sale) -> float:
+        return sum(item.selling_price * item.quantity for item in obj.items.all())
+
+    def get_total_profit(self, obj: Sale) -> float:
+        return sum((item.selling_price - item.cost_price) * item.quantity for item in obj.items.all())
 
 
 class NotificationSerializer(serializers.ModelSerializer):

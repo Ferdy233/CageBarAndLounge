@@ -48,7 +48,18 @@ class InventoryItem(models.Model):
 
 
 class Sale(models.Model):
+    class PaymentMethod(models.TextChoices):
+        CASH = "cash", "Cash"
+        MOMO = "momo", "Mobile Money"
+        PENDING = "pending", "Pending"
+    
+    class PaymentStatus(models.TextChoices):
+        PAID = "paid", "Paid"
+        PENDING = "pending", "Pending"
+    
     staff = models.ForeignKey(User, on_delete=models.PROTECT, related_name="sales")
+    payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices, default=PaymentMethod.CASH)
+    payment_status = models.CharField(max_length=10, choices=PaymentStatus.choices, default=PaymentStatus.PAID)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
