@@ -28,23 +28,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const SITE_LOCK = 'true'; // Set to 'false' to disable the lock
-  
   return (
     <html lang="en" className="dark">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {SITE_LOCK === 'true' ? (
-          <div className="min-h-screen flex items-center justify-center bg-gray-900">
-            <div className="text-center p-8">
-              <h1 className="text-4xl font-bold text-red-500 mb-4">Service Unavailable</h1>
-              <p className="text-xl text-gray-300">Email service subscription not renewed.</p>
-            </div>
-          </div>
-        ) : (
-          <Providers>{children}</Providers>
-        )}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
