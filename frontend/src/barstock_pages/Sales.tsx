@@ -116,11 +116,11 @@ export function Sales() {
         <CardHeader><CardTitle>Recent Sales</CardTitle></CardHeader>
         <CardContent>
           <Table>
-            <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Items</TableHead><TableHead>Staff</TableHead><TableHead className="text-right">Total</TableHead>{isAdmin && <TableHead className="text-right">Profit</TableHead>}</TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Date & Time</TableHead><TableHead>Items</TableHead><TableHead>Staff</TableHead><TableHead className="text-right">Total</TableHead>{isAdmin && <TableHead className="text-right">Profit</TableHead>}</TableRow></TableHeader>
             <TableBody>
               {sales.slice(0, 10).map((sale) => (
                 <TableRow key={sale.id}>
-                  <TableCell>{new Date(sale.createdAt).toLocaleTimeString()}</TableCell>
+                  <TableCell>{new Date(sale.createdAt).toLocaleString()}</TableCell>
                   <TableCell>{sale.items.map((i) => `${i.itemName} (${i.quantity})`).join(', ')}</TableCell>
                   <TableCell>{sale.staffName}</TableCell>
                   <TableCell className="text-right">{formatCurrency(sale.totalAmount)}</TableCell>
