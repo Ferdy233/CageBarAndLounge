@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   Package,
   ShoppingCart,
+  History,
   FileText,
   Users,
   Bell,
@@ -135,7 +136,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       ? [{ to: '/barstock/dashboard', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard' }]
       : []),
     { to: '/barstock/dashboard/inventory', icon: <Package className="w-5 h-5" />, label: 'Inventory' },
-    { to: '/barstock/dashboard/sales', icon: <ShoppingCart className="w-5 h-5" />, label: 'Sales' },
+    { to: '/barstock/dashboard/sales', icon: <ShoppingCart className="w-5 h-5" />, label: 'Items (POS)' },
+    { to: '/barstock/dashboard/recent-sales', icon: <History className="w-5 h-5" />, label: 'Recent Sales' },
     { to: '/barstock/dashboard/reports', icon: <FileText className="w-5 h-5" />, label: 'Reports' },
   ];
 

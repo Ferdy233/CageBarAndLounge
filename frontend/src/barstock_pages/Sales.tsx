@@ -5,21 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Minus, ShoppingCart, Trash2 } from 'lucide-react';
+import { Plus, Minus, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import { SaleItem } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function Sales() {
-  const { inventory, addSale, updateSalePayment, sales } = useData();
+  const { inventory, addSale } = useData();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [search, setSearch] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [pendingPayment, setPendingPayment] = useState(false);
 
   const filteredInventory = inventory.filter((item) => item.name.toLowerCase().includes(search.toLowerCase()) && item.quantity > 0);
 
@@ -55,11 +53,10 @@ export function Sales() {
   const completeSale = async () => {
     if (cart.length === 0) return;
     try {
-      const isPending = paymentMethod === 'pending' || pendingPayment;
+      const isPending = paymentMethod === 'pending';
       await addSale(cart, '', '', paymentMethod, isPending ? 'pending' : 'paid');
       setCart([]);
       setPaymentMethod('cash');
-      setPendingPayment(false);
       toast({ 
         title: isPending ? 'Sale recorded - Payment pending!' : 'Sale completed!', 
         description: `Total: ${formatCurrency(cart.reduce((s, i) => s + i.totalPrice, 0))}` 
@@ -75,19 +72,6 @@ export function Sales() {
 
   const cartTotal = cart.reduce((s, i) => s + i.totalPrice, 0);
   const cartProfit = cart.reduce((s, i) => s + i.profit, 0);
-
-  const handleMarkAsPaid = async (saleId: string) => {
-    try {
-      await updateSalePayment(saleId, 'cash', 'paid');
-      toast({ title: 'Payment marked as paid!' });
-    } catch (err) {
-      toast({
-        title: 'Failed to update payment',
-        description: err instanceof Error ? err.message : 'Request failed',
-        variant: 'destructive',
-      });
-    }
-  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -150,43 +134,6 @@ export function Sales() {
           </CardContent>
         </Card>
       </div>
-
-      <Card className="glass-card">
-        <CardHeader><CardTitle>Recent Sales</CardTitle></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader><TableRow><TableHead>Date & Time</TableHead><TableHead>Items</TableHead><TableHead>Staff</TableHead><TableHead>Payment</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead>{isAdmin && <TableHead className="text-right">Profit</TableHead>}{isAdmin && <TableHead className="text-right">Actions</TableHead>}</TableRow></TableHeader>
-            <TableBody>
-              {sales.slice(0, 10).map((sale) => (
-                <TableRow key={sale.id}>
-                  <TableCell>{new Date(sale.createdAt).toLocaleString()}</TableCell>
-                  <TableCell>{sale.items.map((i) => `${i.itemName} (${i.quantity})`).join(', ')}</TableCell>
-                  <TableCell>{sale.staffName}</TableCell>
-                  <TableCell>
-                    <Badge variant={sale.paymentMethod === 'cash' ? 'default' : sale.paymentMethod === 'momo' ? 'secondary' : 'outline'}>
-                      {sale.paymentMethod === 'cash' ? 'Cash' : sale.paymentMethod === 'momo' ? 'Mobile Money' : 'Pending'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={sale.paymentStatus === 'paid' ? 'default' : 'destructive'}>
-                      {sale.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{formatCurrency(sale.totalAmount)}</TableCell>
-                  {isAdmin && <TableCell className="text-right text-success">{formatCurrency(sale.totalProfit)}</TableCell>}
-                  {isAdmin && sale.paymentStatus === 'pending' && (
-                    <TableCell className="text-right">
-                      <Button size="sm" onClick={() => handleMarkAsPaid(sale.id)}>
-                        Mark as Paid
-                      </Button>
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
   );
 }
