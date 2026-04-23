@@ -87,7 +87,7 @@ class SaleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Sale
-        fields = ["id", "staff", "staff_id", "staff_name", "payment_method", "payment_status", "created_at", "items", "total_amount", "total_profit"]
+        fields = ["id", "staff", "staff_id", "staff_name", "customer_name", "payment_method", "payment_status", "created_at", "items", "total_amount", "total_profit"]
         read_only_fields = ["id", "created_at", "staff"]
 
     def get_staff_name(self, obj: Sale) -> str:

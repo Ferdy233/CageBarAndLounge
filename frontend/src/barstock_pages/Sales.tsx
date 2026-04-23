@@ -17,6 +17,7 @@ export function Sales() {
   const { toast } = useToast();
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [search, setSearch] = useState('');
+  const [customerName, setCustomerName] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
 
   const filteredInventory = inventory.filter((item) => item.name.toLowerCase().includes(search.toLowerCase()) && item.quantity > 0);
@@ -54,8 +55,9 @@ export function Sales() {
     if (cart.length === 0) return;
     try {
       const isPending = paymentMethod === 'pending';
-      await addSale(cart, '', '', paymentMethod, isPending ? 'pending' : 'paid');
+      await addSale(cart, '', '', paymentMethod, isPending ? 'pending' : 'paid', customerName);
       setCart([]);
+      setCustomerName('');
       setPaymentMethod('cash');
       toast({ 
         title: isPending ? 'Sale recorded - Payment pending!' : 'Sale completed!', 
@@ -110,6 +112,15 @@ export function Sales() {
                 <div className="border-t border-border pt-4 space-y-4">
                   <div className="flex justify-between"><span>Total</span><span className="font-bold">{formatCurrency(cartTotal)}</span></div>
                   {isAdmin && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Profit</span><span className="text-success">{formatCurrency(cartProfit)}</span></div>}
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Customer Name (optional)</label>
+                    <Input
+                      placeholder="Enter customer name"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                    />
+                  </div>
                   
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Payment Method</label>

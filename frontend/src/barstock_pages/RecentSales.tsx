@@ -46,6 +46,7 @@ export function RecentSales() {
               <TableRow>
                 <TableHead>Date & Time</TableHead>
                 <TableHead>Items</TableHead>
+                <TableHead>Customer</TableHead>
                 <TableHead>Staff</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead>Status</TableHead>
@@ -59,6 +60,7 @@ export function RecentSales() {
                 <TableRow key={sale.id}>
                   <TableCell>{new Date(sale.createdAt).toLocaleString()}</TableCell>
                   <TableCell>{sale.items.map((i) => `${i.itemName} (${i.quantity})`).join(', ')}</TableCell>
+                  <TableCell>{sale.customerName || '-'}</TableCell>
                   <TableCell>{sale.staffName}</TableCell>
                   <TableCell>
                     <Badge variant={sale.paymentMethod === 'cash' ? 'default' : sale.paymentMethod === 'momo' ? 'secondary' : 'outline'}>
@@ -101,7 +103,7 @@ export function RecentSales() {
               ))}
               {sales.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={isAdmin ? 9 : 8} className="text-center text-muted-foreground py-8">
                     No sales yet
                   </TableCell>
                 </TableRow>

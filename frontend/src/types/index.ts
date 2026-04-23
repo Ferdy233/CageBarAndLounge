@@ -37,6 +37,7 @@ export interface Sale {
   items: SaleItem[];
   totalAmount: number;
   totalProfit: number;
+  customerName: string;
   paymentMethod: 'cash' | 'momo' | 'pending';
   paymentStatus: 'paid' | 'pending';
   staffId: string;

@@ -40,6 +40,7 @@ type ApiSale = {
   staff: number;
   staff_id: string;
   staff_name: string;
+  customer_name?: string;
   payment_method: string;
   payment_status: string;
   created_at: string;
@@ -53,6 +54,7 @@ type ApiSaleCreateResponse = {
   staff: number;
   staff_id: string;
   staff_name: string;
+  customer_name?: string;
   created_at: string;
   items: ApiSaleItem[];
 };
@@ -154,6 +156,7 @@ function mapSaleFromApi(sale: ApiSale): Sale {
     items,
     totalAmount,
     totalProfit,
+    customerName: sale.customer_name ?? '',
     paymentMethod: sale.payment_method as 'cash' | 'momo' | 'pending',
     paymentStatus: sale.payment_status as 'paid' | 'pending',
     staffId: sale.staff_id,
@@ -171,7 +174,7 @@ interface DataContextType {
   
   // Sales
   sales: Sale[];
-  addSale: (items: SaleItem[], staffId: string, staffName: string, paymentMethod?: string, paymentStatus?: string) => Promise<void>;
+  addSale: (items: SaleItem[], staffId: string, staffName: string, paymentMethod?: string, paymentStatus?: string, customerName?: string) => Promise<void>;
   updateSalePayment: (saleId: string, paymentMethod: string, paymentStatus: string) => Promise<void>;
   
   // Notifications
@@ -356,12 +359,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   // Sales functions
-  const addSale = async (items: SaleItem[], _staffId: string, _staffName: string, paymentMethod?: string, paymentStatus?: string) => {
+  const addSale = async (items: SaleItem[], _staffId: string, _staffName: string, paymentMethod?: string, paymentStatus?: string, customerName?: string) => {
     if (items.length === 0) return;
 
     const createdSale = await apiFetchAuth<ApiSaleCreateResponse>("/api/sales/", {
       method: "POST",
       body: {
+        customer_name: (customerName ?? '').trim(),
         payment_method: paymentMethod || 'cash',
         payment_status: paymentStatus || 'paid',
       },
