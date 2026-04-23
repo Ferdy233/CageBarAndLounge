@@ -367,19 +367,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
       },
     });
 
-    await Promise.all(
-      items.map((i) =>
-        apiFetchAuth<ApiSaleItemCreateResponse>("/api/sale-items/", {
-          method: "POST",
-          body: {
-            sale: createdSale.id,
-            item: Number(i.itemId),
-            quantity: i.quantity,
-            selling_price: i.sellingPrice,
-          },
-        })
-      )
-    );
+    try {
+      await Promise.all(
+        items.map((i) =>
+          apiFetchAuth<ApiSaleItemCreateResponse>("/api/sale-items/", {
+            method: "POST",
+            body: {
+              sale: createdSale.id,
+              item: Number(i.itemId),
+              quantity: i.quantity,
+              // DRF DecimalField(max_digits=10, decimal_places=2) requires controlled precision
+              selling_price: Number(i.sellingPrice.toFixed(2)),
+            },
+          })
+        )
+      );
+    } catch (error) {
+      try {
+        await apiFetchAuth<void>(`/api/sales/${createdSale.id}/`, { method: "DELETE" });
+      } catch {
+        // Best-effort rollback; original error is thrown below.
+      }
+      throw error;
+    }
 
     refreshData();
   };
