@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -12,10 +13,12 @@ export function RecentSales() {
   const { sales, updateSalePayment } = useData();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
+  const [payMethods, setPayMethods] = useState<Record<string, 'cash' | 'momo'>>({});
 
   const handleMarkAsPaid = async (saleId: string) => {
+    const paymentMethod = payMethods[saleId] ?? 'cash';
     try {
-      await updateSalePayment(saleId, 'cash', 'paid');
+      await updateSalePayment(saleId, paymentMethod, 'paid');
       toast({ title: 'Payment marked as paid' });
     } catch (err) {
       toast({
@@ -48,7 +51,7 @@ export function RecentSales() {
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 {isAdmin && <TableHead className="text-right">Profit</TableHead>}
-                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -69,20 +72,36 @@ export function RecentSales() {
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(sale.totalAmount)}</TableCell>
                   {isAdmin && <TableCell className="text-right text-success">{formatCurrency(sale.totalProfit)}</TableCell>}
-                  {isAdmin && (
-                    <TableCell className="text-right">
-                      {sale.paymentStatus === 'pending' ? (
-                        <Button size="sm" onClick={() => handleMarkAsPaid(sale.id)}>Mark as Paid</Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                  )}
+                  <TableCell className="text-right">
+                    {sale.paymentStatus === 'pending' ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <Select
+                          value={payMethods[sale.id] ?? 'cash'}
+                          onValueChange={(value: 'cash' | 'momo') =>
+                            setPayMethods((prev) => ({ ...prev, [sale.id]: value }))
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="momo">Mobile Money</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" onClick={() => handleMarkAsPaid(sale.id)}>
+                          Mark as Paid
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {sales.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 8 : 6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">
                     No sales yet
                   </TableCell>
                 </TableRow>

@@ -289,8 +289,11 @@ class EndOfDayReportViewSet(viewsets.ReadOnlyModelViewSet):
         if EndOfDayReport.objects.filter(date=today).exists():
             raise ValidationError({"detail": "End of day report already submitted for today."})
 
-        # Calculate today's sales
-        today_sales = Sale.objects.filter(created_at__date=today)
+        # Calculate today's paid sales only
+        today_sales = Sale.objects.filter(
+            created_at__date=today,
+            payment_status=Sale.PaymentStatus.PAID,
+        )
         sale_items = SaleItem.objects.filter(sale__in=today_sales)
 
         # Recalculate properly
@@ -397,8 +400,11 @@ Cage Bar and Lounge Management System
             serializer = self.get_serializer(report)
             return Response({"submitted": True, "report": serializer.data})
         
-        # Return today's stats preview
-        today_sales = Sale.objects.filter(created_at__date=today)
+        # Return today's paid stats preview
+        today_sales = Sale.objects.filter(
+            created_at__date=today,
+            payment_status=Sale.PaymentStatus.PAID,
+        )
         sale_items = SaleItem.objects.filter(sale__in=today_sales)
         total_revenue = sum(si.selling_price * si.quantity for si in sale_items)
         total_cost = sum(si.cost_price * si.quantity for si in sale_items)

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/utils';
 
 export function Reports() {
-  const { sales, inventory } = useData();
+  const { sales } = useData();
   const { isAdmin } = useAuth();
   const [dateFilter, setDateFilter] = useState('');
   
@@ -15,9 +15,14 @@ export function Reports() {
     if (!dateFilter) return sales;
     return sales.filter((s) => new Date(s.createdAt).toDateString() === new Date(dateFilter).toDateString());
   }, [sales, dateFilter]);
+
+  const paidFilteredSales = useMemo(
+    () => filteredSales.filter((sale) => sale.paymentStatus === 'paid'),
+    [filteredSales]
+  );
   
-  const totalRevenue = filteredSales.reduce((s, sale) => s + sale.totalAmount, 0);
-  const totalProfit = filteredSales.reduce((s, sale) => s + sale.totalProfit, 0);
+  const totalRevenue = paidFilteredSales.reduce((s, sale) => s + sale.totalAmount, 0);
+  const totalProfit = paidFilteredSales.reduce((s, sale) => s + sale.totalProfit, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -48,7 +53,7 @@ export function Reports() {
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="text-sm text-muted-foreground">
-              {dateFilter ? 'Revenue' : 'Total Revenue'} ({filteredSales.length} transactions)
+              {dateFilter ? 'Revenue (Paid)' : 'Total Revenue (Paid)'} ({paidFilteredSales.length} paid)
             </CardTitle>
           </CardHeader>
           <CardContent>

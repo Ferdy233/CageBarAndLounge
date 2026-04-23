@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { InventoryItem, Sale, Notification, User, SaleItem, StockAdjustment, Category } from '@/types';
 import { apiFetchAuth, getAccessToken } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 type ApiCategory = {
   id: number;
@@ -201,6 +202,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
   const [inventory, setInventoryState] = useState<InventoryItem[]>([]);
   const [sales, setSalesState] = useState<Sale[]>([]);
   const [notifications, setNotificationsState] = useState<Notification[]>([]);
@@ -271,8 +273,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [loadInventory, loadSales, loadUsers, loadCategories]);
 
   useEffect(() => {
+    if (isLoading) return;
     refreshData();
-  }, [refreshData]);
+  }, [isAuthenticated, isLoading, refreshData]);
 
   const checkStockLevels = useCallback((items: InventoryItem[]) => {
     const newNotifications: Notification[] = [];

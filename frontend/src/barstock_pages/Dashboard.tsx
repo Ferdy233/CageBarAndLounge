@@ -25,10 +25,11 @@ export function Dashboard() {
     const todaySales = sales.filter(
       (sale) => new Date(sale.createdAt).toDateString() === today
     );
+    const paidTodaySales = todaySales.filter((sale) => sale.paymentStatus === 'paid');
 
-    const totalRevenue = todaySales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-    const totalProfit = todaySales.reduce((sum, sale) => sum + sale.totalProfit, 0);
-    const totalItems = todaySales.reduce(
+    const totalRevenue = paidTodaySales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+    const totalProfit = paidTodaySales.reduce((sum, sale) => sum + sale.totalProfit, 0);
+    const totalItems = paidTodaySales.reduce(
       (sum, sale) => sum + sale.items.reduce((s, i) => s + i.quantity, 0),
       0
     );
@@ -36,7 +37,7 @@ export function Dashboard() {
     return {
       revenue: totalRevenue,
       profit: totalProfit,
-      salesCount: todaySales.length,
+      salesCount: paidTodaySales.length,
       itemsSold: totalItems,
     };
   }, [sales]);
@@ -67,11 +68,12 @@ export function Dashboard() {
       const daySales = sales.filter(
         (sale) => new Date(sale.createdAt).toDateString() === dateString
       );
+      const paidDaySales = daySales.filter((sale) => sale.paymentStatus === 'paid');
 
       weekData.push({
         day: days[date.getDay()],
-        revenue: daySales.reduce((sum, sale) => sum + sale.totalAmount, 0),
-        profit: daySales.reduce((sum, sale) => sum + sale.totalProfit, 0),
+        revenue: paidDaySales.reduce((sum, sale) => sum + sale.totalAmount, 0),
+        profit: paidDaySales.reduce((sum, sale) => sum + sale.totalProfit, 0),
       });
     }
 
