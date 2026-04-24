@@ -4,12 +4,18 @@ import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
 
 export function Reports() {
   const { sales } = useData();
   const { isAdmin } = useAuth();
   const [dateFilter, setDateFilter] = useState('');
+
+  const selectedDay = useMemo(() => {
+    if (dateFilter) return new Date(dateFilter);
+    return new Date();
+  }, [dateFilter]);
   
   const filteredSales = useMemo(() => {
     if (!dateFilter) return sales;
@@ -20,9 +26,118 @@ export function Reports() {
     () => filteredSales.filter((sale) => sale.paymentStatus === 'paid'),
     [filteredSales]
   );
+
+  const dailyPaymentBreakdown = useMemo(() => {
+    const dailySales = sales.filter(
+      (sale) => new Date(sale.createdAt).toDateString() === selectedDay.toDateString()
+    );
+
+    const methods: Array<'cash' | 'momo' | 'pending'> = ['cash', 'momo', 'pending'];
+    return methods.map((method) => {
+      const methodSales = dailySales.filter((sale) => sale.paymentMethod === method);
+      const paidMethodSales = methodSales.filter((sale) => sale.paymentStatus === 'paid');
+      const pendingMethodSales = methodSales.filter((sale) => sale.paymentStatus === 'pending');
+
+      return {
+        method,
+        transactions: methodSales.length,
+        paidSales: paidMethodSales.reduce((sum, sale) => sum + sale.totalAmount, 0),
+        paidProfit: paidMethodSales.reduce((sum, sale) => sum + sale.totalProfit, 0),
+        pendingAmount: pendingMethodSales.reduce((sum, sale) => sum + sale.totalAmount, 0),
+      };
+    });
+  }, [sales, selectedDay]);
+
+  const methodLabel: Record<'cash' | 'momo' | 'pending', string> = {
+    cash: 'Cash',
+    momo: 'Mobile Money',
+    pending: 'Pending',
+  };
   
   const totalRevenue = paidFilteredSales.reduce((s, sale) => s + sale.totalAmount, 0);
   const totalProfit = paidFilteredSales.reduce((s, sale) => s + sale.totalProfit, 0);
+
+  const selectedDayKey = selectedDay.toISOString().slice(0, 10);
+
+  const exportDailyBreakdownCsv = () => {
+    const headers = ['Payment Method', 'Transactions', 'Sales (Paid)', 'Profit (Paid)', 'Pending Amount'];
+    const rows = dailyPaymentBreakdown.map((row) => [
+      methodLabel[row.method],
+      String(row.transactions),
+      row.paidSales.toFixed(2),
+      row.paidProfit.toFixed(2),
+      row.pendingAmount.toFixed(2),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((line) => line.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `daily-payment-breakdown-${selectedDayKey}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportDailyBreakdownPdf = () => {
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return;
+
+    const rowsHtml = dailyPaymentBreakdown
+      .map(
+        (row) => `
+          <tr>
+            <td>${methodLabel[row.method]}</td>
+            <td style="text-align:right">${row.transactions}</td>
+            <td style="text-align:right">${formatCurrency(row.paidSales)}</td>
+            <td style="text-align:right">${formatCurrency(row.paidProfit)}</td>
+            <td style="text-align:right">${formatCurrency(row.pendingAmount)}</td>
+          </tr>
+        `
+      )
+      .join('');
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Daily Payment Breakdown ${selectedDayKey}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; }
+            h1 { margin: 0 0 8px; font-size: 20px; }
+            p { margin: 0 0 16px; color: #555; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 8px; }
+            th { background: #f5f5f5; text-align: left; }
+          </style>
+        </head>
+        <body>
+          <h1>Daily Payment Method Breakdown</h1>
+          <p>Date: ${selectedDay.toLocaleDateString()}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Payment Method</th>
+                <th style="text-align:right">Transactions</th>
+                <th style="text-align:right">Sales (Paid)</th>
+                <th style="text-align:right">Profit (Paid)</th>
+                <th style="text-align:right">Pending Amount</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -83,6 +198,50 @@ export function Reports() {
           </CardContent>
         </Card>
       </div>
+
+      {isAdmin && (
+        <Card className="glass-card">
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>
+                Daily Payment Method Breakdown ({selectedDay.toLocaleDateString()})
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={exportDailyBreakdownCsv}>
+                  Export CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportDailyBreakdownPdf}>
+                  Export PDF
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Payment Method</TableHead>
+                  <TableHead className="text-right">Transactions</TableHead>
+                  <TableHead className="text-right">Sales (Paid)</TableHead>
+                  <TableHead className="text-right">Profit (Paid)</TableHead>
+                  <TableHead className="text-right">Pending Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dailyPaymentBreakdown.map((row) => (
+                  <TableRow key={row.method}>
+                    <TableCell>{methodLabel[row.method]}</TableCell>
+                    <TableCell className="text-right">{row.transactions}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.paidSales)}</TableCell>
+                    <TableCell className="text-right text-success">{formatCurrency(row.paidProfit)}</TableCell>
+                    <TableCell className="text-right text-warning">{formatCurrency(row.pendingAmount)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="glass-card">
         <CardHeader>
