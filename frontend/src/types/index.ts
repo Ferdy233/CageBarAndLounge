@@ -37,12 +37,22 @@ export interface Sale {
   items: SaleItem[];
   totalAmount: number;
   totalProfit: number;
+  salesSessionId?: string;
   customerName: string;
   paymentMethod: 'cash' | 'momo' | 'pending';
   paymentStatus: 'paid' | 'pending';
   staffId: string;
   staffName: string;
   createdAt: string;
+}
+
+export interface SalesSession {
+  id: string;
+  startedByName: string;
+  endedByName: string;
+  startedAt: string;
+  endedAt?: string;
+  isActive: boolean;
 }
 
 export interface DailyReport {

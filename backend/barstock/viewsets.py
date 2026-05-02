@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from django.conf import settings
 from django.utils import timezone
 
-from .models import Category, EndOfDayReport, InventoryItem, Notification, Sale, SaleItem, StaffProfile, StockAdjustment
+from .models import Category, EndOfDayReport, InventoryItem, Notification, Sale, SaleItem, SalesSession, StaffProfile, StockAdjustment
 from .serializers import (
     CategorySerializer,
     EndOfDayReportSerializer,
@@ -22,6 +22,7 @@ from .serializers import (
     NotificationSerializer,
     SaleItemSerializer,
     SaleSerializer,
+    SalesSessionSerializer,
     StockAdjustmentSerializer,
     UserSerializer,
 )
@@ -95,6 +96,30 @@ class IsBarStockAdmin(permissions.BasePermission):
             return False
         staff_profile = getattr(user, "staff_profile", None)
         return bool(staff_profile and staff_profile.role == StaffProfile.Role.ADMIN)
+
+
+class IsSupervisorOrAdmin(permissions.BasePermission):
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        staff_profile = getattr(user, "staff_profile", None)
+        return bool(staff_profile and staff_profile.role in (StaffProfile.Role.ADMIN, StaffProfile.Role.SUPERVISOR))
+
+
+def get_current_reporting_session() -> SalesSession | None:
+    active_session = SalesSession.objects.filter(ended_at__isnull=True).order_by("-started_at").first()
+    if active_session:
+        return active_session
+    return SalesSession.objects.order_by("-started_at").first()
+
+
+def get_reporting_sales_queryset() -> tuple[SalesSession | None, object]:
+    session = get_current_reporting_session()
+    if session:
+        return session, Sale.objects.filter(sales_session=session)
+    today = timezone.localdate()
+    return None, Sale.objects.filter(created_at__date=today)
 
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
@@ -219,7 +244,44 @@ class SaleViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(staff=self.request.user)
+        active_session = SalesSession.objects.filter(ended_at__isnull=True).order_by("-started_at").first()
+        serializer.save(staff=self.request.user, sales_session=active_session)
+
+
+class SalesSessionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = SalesSession.objects.select_related("started_by", "ended_by").all().order_by("-started_at")
+    serializer_class = SalesSessionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=False, methods=["get"], url_path="current")
+    def current_session(self, request):
+        session = get_current_reporting_session()
+        if not session:
+            return Response({"current_session": None})
+        serializer = self.get_serializer(session)
+        return Response({"current_session": serializer.data})
+
+    @action(detail=False, methods=["post"], url_path="start", permission_classes=[IsSupervisorOrAdmin])
+    def start_session(self, request):
+        active_session = SalesSession.objects.filter(ended_at__isnull=True).order_by("-started_at").first()
+        if active_session:
+            raise ValidationError({"detail": "An active sales session already exists."})
+
+        session = SalesSession.objects.create(started_by=request.user)
+        serializer = self.get_serializer(session)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"], url_path="end", permission_classes=[IsSupervisorOrAdmin])
+    def end_session(self, request):
+        active_session = SalesSession.objects.filter(ended_at__isnull=True).order_by("-started_at").first()
+        if not active_session:
+            raise ValidationError({"detail": "No active sales session to end."})
+
+        active_session.ended_at = timezone.now()
+        active_session.ended_by = request.user
+        active_session.save(update_fields=["ended_at", "ended_by"])
+        serializer = self.get_serializer(active_session)
+        return Response(serializer.data)
 
 
 class SaleItemViewSet(viewsets.ModelViewSet):
@@ -267,15 +329,6 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
 
-class IsSupervisorOrAdmin(permissions.BasePermission):
-    def has_permission(self, request, view):
-        user = getattr(request, "user", None)
-        if not user or not user.is_authenticated:
-            return False
-        staff_profile = getattr(user, "staff_profile", None)
-        return bool(staff_profile and staff_profile.role in (StaffProfile.Role.ADMIN, StaffProfile.Role.SUPERVISOR))
-
-
 class EndOfDayReportViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = EndOfDayReport.objects.all().order_by("-date")
     serializer_class = EndOfDayReportSerializer
@@ -283,29 +336,29 @@ class EndOfDayReportViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="submit", permission_classes=[IsSupervisorOrAdmin])
     def submit_eod(self, request):
-        today = timezone.localdate()
+        session, session_sales = get_reporting_sales_queryset()
+        report_date = timezone.localdate()
+        if session:
+            report_date = timezone.localtime(session.started_at).date()
         notes = request.data.get("notes", "")
 
-        if EndOfDayReport.objects.filter(date=today).exists():
+        if EndOfDayReport.objects.filter(date=report_date).exists():
             raise ValidationError({"detail": "End of day report already submitted for today."})
 
-        # Calculate today's paid sales only
-        today_sales = Sale.objects.filter(
-            created_at__date=today,
-            payment_status=Sale.PaymentStatus.PAID,
-        )
-        sale_items = SaleItem.objects.filter(sale__in=today_sales)
+        # Calculate paid sales only for reporting session window
+        paid_sales = session_sales.filter(payment_status=Sale.PaymentStatus.PAID)
+        sale_items = SaleItem.objects.filter(sale__in=paid_sales)
 
         # Recalculate properly
         total_revenue = sum(si.selling_price * si.quantity for si in sale_items)
         total_cost = sum(si.cost_price * si.quantity for si in sale_items)
         total_profit = total_revenue - total_cost
-        total_transactions = today_sales.count()
+        total_transactions = paid_sales.count()
         items_sold = sum(si.quantity for si in sale_items)
 
         with transaction.atomic():
             report = EndOfDayReport.objects.create(
-                date=today,
+                date=report_date,
                 submitted_by=request.user,
                 total_sales=total_revenue,
                 total_profit=total_profit,
@@ -324,11 +377,18 @@ class EndOfDayReportViewSet(viewsets.ReadOnlyModelViewSet):
 
             email_status = "not_attempted"
             if admin_emails:
-                subject = f"End of Day Report - {today.strftime('%B %d, %Y')}"
+                session_label = "Calendar Day"
+                if session:
+                    start_label = timezone.localtime(session.started_at).strftime('%b %d, %Y %I:%M %p')
+                    end_label = timezone.localtime(session.ended_at).strftime('%b %d, %Y %I:%M %p') if session.ended_at else 'Active'
+                    session_label = f"{start_label} to {end_label}"
+
+                subject = f"End of Day Report - {report_date.strftime('%B %d, %Y')}"
                 message = f"""End of Day Sales Report
 
-Date: {today.strftime('%B %d, %Y')}
+Date: {report_date.strftime('%B %d, %Y')}
 Submitted by: {request.user.get_full_name() or request.user.username}
+Session: {session_label}
 
 Summary:
 - Total Sales: GH₵ {total_revenue:,.2f}
@@ -345,7 +405,7 @@ Cage Bar and Lounge Management System
                 if not email_sent:
                     logger.warning(
                         "EOD report rollback: email send failed date=%s submitted_by=%s status=%s recipients=%s",
-                        today,
+                        report_date,
                         request.user.username,
                         email_status,
                         admin_emails,
@@ -364,7 +424,7 @@ Cage Bar and Lounge Management System
                 email_status = "no_admin_recipients"
                 logger.warning(
                     "EOD report rollback: no admin recipients date=%s submitted_by=%s",
-                    today,
+                    report_date,
                     request.user.username,
                 )
                 raise ValidationError(
@@ -373,7 +433,7 @@ Cage Bar and Lounge Management System
 
             logger.info(
                 "EOD email delivery result: date=%s submitted_by=%s sent=%s status=%s recipients=%s",
-                today,
+                report_date,
                 request.user.username,
                 bool(report.email_sent),
                 email_status,
@@ -391,31 +451,31 @@ Cage Bar and Lounge Management System
 
     @action(detail=False, methods=["get"], url_path="today")
     def today_status(self, request):
-        today = timezone.localdate()
+        session, session_sales = get_reporting_sales_queryset()
+        report_date = timezone.localdate()
+        if session:
+            report_date = timezone.localtime(session.started_at).date()
         user = getattr(request, "user", None)
         staff_profile = getattr(user, "staff_profile", None)
         is_admin = bool(staff_profile and staff_profile.role == StaffProfile.Role.ADMIN)
-        report = EndOfDayReport.objects.filter(date=today).first()
+        report = EndOfDayReport.objects.filter(date=report_date).first()
         if report:
             serializer = self.get_serializer(report)
             return Response({"submitted": True, "report": serializer.data})
         
-        # Return today's paid stats preview
-        today_sales = Sale.objects.filter(
-            created_at__date=today,
-            payment_status=Sale.PaymentStatus.PAID,
-        )
-        sale_items = SaleItem.objects.filter(sale__in=today_sales)
+        # Return paid stats preview for reporting session window
+        paid_sales = session_sales.filter(payment_status=Sale.PaymentStatus.PAID)
+        sale_items = SaleItem.objects.filter(sale__in=paid_sales)
         total_revenue = sum(si.selling_price * si.quantity for si in sale_items)
         total_cost = sum(si.cost_price * si.quantity for si in sale_items)
         total_profit = total_revenue - total_cost
-        total_transactions = today_sales.count()
+        total_transactions = paid_sales.count()
         items_sold = sum(si.quantity for si in sale_items)
 
         return Response({
             "submitted": False,
             "preview": {
-                "date": today.isoformat(),
+                "date": report_date.isoformat(),
                 "total_sales": float(total_revenue),
                 "total_transactions": total_transactions,
                 "items_sold": items_sold,

@@ -5,12 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 
 export function Reports() {
-  const { sales } = useData();
-  const { isAdmin } = useAuth();
+  const { sales, currentSalesSession, startSalesSession, endSalesSession } = useData();
+  const { isAdmin, canSubmitEOD } = useAuth();
+  const { toast } = useToast();
   const [dateFilter, setDateFilter] = useState('');
+  const [isSessionActionLoading, setIsSessionActionLoading] = useState(false);
 
   const selectedDay = useMemo(() => {
     if (dateFilter) return new Date(dateFilter);
@@ -22,15 +25,22 @@ export function Reports() {
     return sales.filter((s) => new Date(s.createdAt).toDateString() === new Date(dateFilter).toDateString());
   }, [sales, dateFilter]);
 
+  const sessionWindowSales = useMemo(() => {
+    if (!currentSalesSession) {
+      const fallbackDay = dateFilter ? new Date(dateFilter) : new Date();
+      return sales.filter((sale) => new Date(sale.createdAt).toDateString() === fallbackDay.toDateString());
+    }
+
+    return sales.filter((sale) => sale.salesSessionId === currentSalesSession.id);
+  }, [sales, currentSalesSession, dateFilter]);
+
   const paidFilteredSales = useMemo(
-    () => filteredSales.filter((sale) => sale.paymentStatus === 'paid'),
-    [filteredSales]
+    () => sessionWindowSales.filter((sale) => sale.paymentStatus === 'paid'),
+    [sessionWindowSales]
   );
 
   const dailyPaymentBreakdown = useMemo(() => {
-    const dailySales = sales.filter(
-      (sale) => new Date(sale.createdAt).toDateString() === selectedDay.toDateString()
-    );
+    const dailySales = sessionWindowSales;
 
     const methods: Array<'cash' | 'momo' | 'pending'> = ['cash', 'momo', 'pending'];
     return methods.map((method) => {
@@ -46,7 +56,7 @@ export function Reports() {
         pendingAmount: pendingMethodSales.reduce((sum, sale) => sum + sale.totalAmount, 0),
       };
     });
-  }, [sales, selectedDay]);
+  }, [sessionWindowSales]);
 
   const methodLabel: Record<'cash' | 'momo' | 'pending', string> = {
     cash: 'Cash',
@@ -57,7 +67,44 @@ export function Reports() {
   const totalRevenue = paidFilteredSales.reduce((s, sale) => s + sale.totalAmount, 0);
   const totalProfit = paidFilteredSales.reduce((s, sale) => s + sale.totalProfit, 0);
 
-  const selectedDayKey = selectedDay.toISOString().slice(0, 10);
+  const selectedDayKey = currentSalesSession
+    ? new Date(currentSalesSession.startedAt).toISOString().slice(0, 10)
+    : selectedDay.toISOString().slice(0, 10);
+  const sessionWindowLabel = currentSalesSession
+    ? `${new Date(currentSalesSession.startedAt).toLocaleString()}${currentSalesSession.endedAt ? ` - ${new Date(currentSalesSession.endedAt).toLocaleString()}` : ' - Active'}`
+    : `${selectedDay.toLocaleDateString()} (calendar day)`;
+
+  const handleStartSession = async () => {
+    setIsSessionActionLoading(true);
+    try {
+      await startSalesSession();
+      toast({ title: 'Sales session started' });
+    } catch (err) {
+      toast({
+        title: 'Failed to start session',
+        description: err instanceof Error ? err.message : 'Request failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSessionActionLoading(false);
+    }
+  };
+
+  const handleEndSession = async () => {
+    setIsSessionActionLoading(true);
+    try {
+      await endSalesSession();
+      toast({ title: 'Sales session ended' });
+    } catch (err) {
+      toast({
+        title: 'Failed to end session',
+        description: err instanceof Error ? err.message : 'Request failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSessionActionLoading(false);
+    }
+  };
 
   const exportDailyBreakdownCsv = () => {
     const headers = ['Payment Method', 'Transactions', 'Sales (Paid)', 'Profit (Paid)', 'Pending Amount'];
@@ -118,7 +165,7 @@ export function Reports() {
         </head>
         <body>
           <h1>Daily Payment Method Breakdown</h1>
-          <p>Date: ${selectedDay.toLocaleDateString()}</p>
+          <p>Window: ${sessionWindowLabel}</p>
           <table>
             <thead>
               <tr>
@@ -143,7 +190,7 @@ export function Reports() {
     <div className="space-y-6 animate-fade-in">
       <div><h1 className="text-2xl font-display font-bold">Reports</h1><p className="text-muted-foreground">Sales reports and analytics</p></div>
       
-      <div className="flex items-center space-x-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <label htmlFor="date-filter" className="text-sm font-medium">Filter by date:</label>
           <Input
@@ -154,21 +201,45 @@ export function Reports() {
             className="mt-1"
           />
         </div>
-        {dateFilter && (
-          <button
-            onClick={() => setDateFilter('')}
-            className="mt-6 text-sm text-blue-600 hover:text-blue-800"
-          >
-            Clear filter
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {dateFilter && (
+            <Button variant="outline" onClick={() => setDateFilter('')}>
+              Clear filter
+            </Button>
+          )}
+          {canSubmitEOD && (
+            <>
+              <Button
+                variant="outline"
+                onClick={handleStartSession}
+                disabled={isSessionActionLoading || !!currentSalesSession?.isActive}
+              >
+                Start Sales
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleEndSession}
+                disabled={isSessionActionLoading || !currentSalesSession?.isActive}
+              >
+                End Sales
+              </Button>
+            </>
+          )}
+        </div>
       </div>
+
+      <Card className="glass-card">
+        <CardContent className="pt-6">
+          <p className="text-sm text-muted-foreground">Current Daily Sales Window</p>
+          <p className="font-medium">{sessionWindowLabel}</p>
+        </CardContent>
+      </Card>
       
       <div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="text-sm text-muted-foreground">
-              {dateFilter ? 'Revenue (Paid)' : 'Total Revenue (Paid)'} ({paidFilteredSales.length} paid)
+              Revenue (Paid) ({paidFilteredSales.length} paid)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -179,7 +250,7 @@ export function Reports() {
           <Card className="glass-card">
             <CardHeader>
               <CardTitle className="text-sm text-muted-foreground">
-                {dateFilter ? 'Profit' : 'Total Profit'}
+                Total Profit
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -190,11 +261,11 @@ export function Reports() {
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="text-sm text-muted-foreground">
-              {dateFilter ? 'Transactions' : 'Total Transactions'}
+              Total Transactions
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{filteredSales.length}</p>
+            <p className="text-3xl font-bold">{sessionWindowSales.length}</p>
           </CardContent>
         </Card>
       </div>
@@ -204,7 +275,7 @@ export function Reports() {
           <CardHeader>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>
-                Daily Payment Method Breakdown ({selectedDay.toLocaleDateString()})
+                Daily Payment Method Breakdown
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={exportDailyBreakdownCsv}>

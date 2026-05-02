@@ -7,6 +7,7 @@ from .viewsets import (
     InventoryItemViewSet,
     NotificationViewSet,
     SaleItemViewSet,
+    SalesSessionViewSet,
     SaleViewSet,
     StockAdjustmentViewSet,
     UserViewSet,
@@ -18,6 +19,7 @@ router.register(r"categories", CategoryViewSet, basename="category")
 router.register(r"inventory-items", InventoryItemViewSet, basename="inventory-item")
 router.register(r"sales", SaleViewSet, basename="sale")
 router.register(r"sale-items", SaleItemViewSet, basename="sale-item")
+router.register(r"sales-sessions", SalesSessionViewSet, basename="sales-session")
 router.register(r"notifications", NotificationViewSet, basename="notification")
 router.register(r"stock-adjustments", StockAdjustmentViewSet, basename="stock-adjustment")
 router.register(r"eod-reports", EndOfDayReportViewSet, basename="eod-report")

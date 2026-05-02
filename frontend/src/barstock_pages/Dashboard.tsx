@@ -17,15 +17,23 @@ import { formatCurrency } from '@/lib/utils';
 
 export function Dashboard() {
   const { user } = useAuth();
-  const { inventory, sales, notifications } = useData();
+  const { inventory, sales, notifications, currentSalesSession } = useData();
   const isAdmin = user?.role === 'admin';
 
+  const sessionWindowSales = useMemo(() => {
+    if (!currentSalesSession) {
+      const today = new Date().toDateString();
+      return sales.filter((sale) => new Date(sale.createdAt).toDateString() === today);
+    }
+    return sales.filter((sale) => sale.salesSessionId === currentSalesSession.id);
+  }, [sales, currentSalesSession]);
+
+  const windowLabel = currentSalesSession
+    ? `${new Date(currentSalesSession.startedAt).toLocaleString()}${currentSalesSession.endedAt ? ` - ${new Date(currentSalesSession.endedAt).toLocaleString()}` : ' - Active'}`
+    : 'Calendar day';
+
   const todayStats = useMemo(() => {
-    const today = new Date().toDateString();
-    const todaySales = sales.filter(
-      (sale) => new Date(sale.createdAt).toDateString() === today
-    );
-    const paidTodaySales = todaySales.filter((sale) => sale.paymentStatus === 'paid');
+    const paidTodaySales = sessionWindowSales.filter((sale) => sale.paymentStatus === 'paid');
 
     const totalRevenue = paidTodaySales.reduce((sum, sale) => sum + sale.totalAmount, 0);
     const totalProfit = paidTodaySales.reduce((sum, sale) => sum + sale.totalProfit, 0);
@@ -40,7 +48,7 @@ export function Dashboard() {
       salesCount: paidTodaySales.length,
       itemsSold: totalItems,
     };
-  }, [sales]);
+  }, [sessionWindowSales]);
 
   const inventoryStats = useMemo(() => {
     const lowStock = inventory.filter(
@@ -102,7 +110,7 @@ export function Dashboard() {
           Welcome back, <span className="text-gradient-gold">{user?.name}</span>
         </h1>
         <p className="text-muted-foreground mt-1">
-          Here's what's happening at your bar today.
+          Daily sales window: {windowLabel}
         </p>
       </div>
 

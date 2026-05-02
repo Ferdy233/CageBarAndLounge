@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from .models import Category, EndOfDayReport, InventoryItem, Notification, Sale, SaleItem, StaffProfile, StockAdjustment
+from .models import Category, EndOfDayReport, InventoryItem, Notification, Sale, SaleItem, SalesSession, StaffProfile, StockAdjustment
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -84,10 +84,11 @@ class SaleSerializer(serializers.ModelSerializer):
     staff_name = serializers.SerializerMethodField()
     total_amount = serializers.SerializerMethodField()
     total_profit = serializers.SerializerMethodField()
+    sales_session_id = serializers.IntegerField(source="sales_session.id", read_only=True, allow_null=True)
 
     class Meta:
         model = Sale
-        fields = ["id", "staff", "staff_id", "staff_name", "customer_name", "payment_method", "payment_status", "created_at", "items", "total_amount", "total_profit"]
+        fields = ["id", "staff", "staff_id", "staff_name", "sales_session_id", "customer_name", "payment_method", "payment_status", "created_at", "items", "total_amount", "total_profit"]
         read_only_fields = ["id", "created_at", "staff"]
 
     def get_staff_name(self, obj: Sale) -> str:
@@ -99,6 +100,39 @@ class SaleSerializer(serializers.ModelSerializer):
 
     def get_total_profit(self, obj: Sale) -> float:
         return sum((item.selling_price - item.cost_price) * item.quantity for item in obj.items.all())
+
+
+class SalesSessionSerializer(serializers.ModelSerializer):
+    started_by_name = serializers.SerializerMethodField()
+    ended_by_name = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SalesSession
+        fields = [
+            "id",
+            "started_by",
+            "started_by_name",
+            "ended_by",
+            "ended_by_name",
+            "started_at",
+            "ended_at",
+            "is_active",
+        ]
+        read_only_fields = fields
+
+    def get_started_by_name(self, obj: SalesSession) -> str:
+        full_name = obj.started_by.get_full_name()
+        return full_name or obj.started_by.username
+
+    def get_ended_by_name(self, obj: SalesSession) -> str:
+        if not obj.ended_by:
+            return ""
+        full_name = obj.ended_by.get_full_name()
+        return full_name or obj.ended_by.username
+
+    def get_is_active(self, obj: SalesSession) -> bool:
+        return obj.ended_at is None
 
 
 class NotificationSerializer(serializers.ModelSerializer):

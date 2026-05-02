@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { InventoryItem, Sale, Notification, User, SaleItem, StockAdjustment, Category } from '@/types';
+import { InventoryItem, Sale, Notification, User, SaleItem, StockAdjustment, Category, SalesSession } from '@/types';
 import { apiFetchAuth, getAccessToken } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -40,6 +40,7 @@ type ApiSale = {
   staff: number;
   staff_id: string;
   staff_name: string;
+  sales_session_id?: number | null;
   customer_name?: string;
   payment_method: string;
   payment_status: string;
@@ -54,9 +55,25 @@ type ApiSaleCreateResponse = {
   staff: number;
   staff_id: string;
   staff_name: string;
+  sales_session_id?: number | null;
   customer_name?: string;
   created_at: string;
   items: ApiSaleItem[];
+};
+
+type ApiSalesSession = {
+  id: number;
+  started_by: number;
+  started_by_name: string;
+  ended_by: number | null;
+  ended_by_name: string;
+  started_at: string;
+  ended_at: string | null;
+  is_active: boolean;
+};
+
+type ApiCurrentSalesSession = {
+  current_session: ApiSalesSession | null;
 };
 
 type ApiSaleItemCreateResponse = {
@@ -156,12 +173,24 @@ function mapSaleFromApi(sale: ApiSale): Sale {
     items,
     totalAmount,
     totalProfit,
+    salesSessionId: sale.sales_session_id ? String(sale.sales_session_id) : undefined,
     customerName: sale.customer_name ?? '',
     paymentMethod: sale.payment_method as 'cash' | 'momo' | 'pending',
     paymentStatus: sale.payment_status as 'paid' | 'pending',
     staffId: sale.staff_id,
     staffName: sale.staff_name,
     createdAt: sale.created_at,
+  };
+}
+
+function mapSalesSessionFromApi(session: ApiSalesSession): SalesSession {
+  return {
+    id: String(session.id),
+    startedByName: session.started_by_name,
+    endedByName: session.ended_by_name,
+    startedAt: session.started_at,
+    endedAt: session.ended_at ?? undefined,
+    isActive: session.is_active,
   };
 }
 
@@ -176,6 +205,10 @@ interface DataContextType {
   sales: Sale[];
   addSale: (items: SaleItem[], staffId: string, staffName: string, paymentMethod?: string, paymentStatus?: string, customerName?: string) => Promise<void>;
   updateSalePayment: (saleId: string, paymentMethod: string, paymentStatus: string) => Promise<void>;
+  salesSessions: SalesSession[];
+  currentSalesSession: SalesSession | null;
+  startSalesSession: () => Promise<void>;
+  endSalesSession: () => Promise<void>;
   
   // Notifications
   notifications: Notification[];
@@ -212,11 +245,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [users, setUsersState] = useState<User[]>([]);
   const [stockAdjustments, setStockAdjustmentsState] = useState<StockAdjustment[]>([]);
   const [categories, setCategoriesState] = useState<Category[]>([]);
+  const [salesSessions, setSalesSessionsState] = useState<SalesSession[]>([]);
+  const [currentSalesSession, setCurrentSalesSession] = useState<SalesSession | null>(null);
 
   const loadInventory = useCallback(async () => {
     const items = await apiFetchAuth<ApiInventoryItem[]>("/api/inventory-items/");
     const mapped = items.map(mapInventoryFromApi);
     setInventoryState(mapped);
+    return mapped;
+  }, []);
+
+  const loadSalesSessions = useCallback(async () => {
+    const apiSessions = await apiFetchAuth<ApiSalesSession[]>('/api/sales-sessions/');
+    const mapped = apiSessions.map(mapSalesSessionFromApi);
+    setSalesSessionsState(mapped);
+    return mapped;
+  }, []);
+
+  const loadCurrentSalesSession = useCallback(async () => {
+    const response = await apiFetchAuth<ApiCurrentSalesSession>('/api/sales-sessions/current/');
+    const mapped = response.current_session ? mapSalesSessionFromApi(response.current_session) : null;
+    setCurrentSalesSession(mapped);
     return mapped;
   }, []);
 
@@ -251,6 +300,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setInventoryState([]);
       setSalesState([]);
       setUsersState([]);
+      setSalesSessionsState([]);
+      setCurrentSalesSession(null);
       setCategoriesState([]);
       return;
     }
@@ -268,12 +319,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setUsersState([]);
         return [] as User[];
       }),
+      loadSalesSessions().catch(() => {
+        setSalesSessionsState([]);
+        return [] as SalesSession[];
+      }),
+      loadCurrentSalesSession().catch(() => {
+        setCurrentSalesSession(null);
+        return null;
+      }),
       loadCategories().catch(() => {
         setCategoriesState([]);
         return [] as Category[];
       }),
     ]);
-  }, [loadInventory, loadSales, loadUsers, loadCategories]);
+  }, [loadInventory, loadSales, loadUsers, loadSalesSessions, loadCurrentSalesSession, loadCategories]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -398,6 +457,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     refreshData();
   };
 
+  const startSalesSession = async () => {
+    await apiFetchAuth<ApiSalesSession>('/api/sales-sessions/start/', { method: 'POST' });
+    refreshData();
+  };
+
+  const endSalesSession = async () => {
+    await apiFetchAuth<ApiSalesSession>('/api/sales-sessions/end/', { method: 'POST' });
+    refreshData();
+  };
+
   const updateSalePayment = async (saleId: string, paymentMethod: string, paymentStatus: string) => {
     await apiFetchAuth<ApiSale>(`/api/sales/${saleId}/`, {
       method: "PATCH",
@@ -485,6 +554,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         sales,
         addSale,
         updateSalePayment,
+        salesSessions,
+        currentSalesSession,
+        startSalesSession,
+        endSalesSession,
         notifications,
         markNotificationRead,
         clearNotifications,

@@ -179,9 +179,9 @@ export function EndOfDay() {
         <>
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Today's Summary</CardTitle>
+              <CardTitle>Current Sales Window Summary</CardTitle>
               <CardDescription>
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                Window date: {new Date(preview?.date ?? new Date().toISOString()).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </CardDescription>
             </CardHeader>
             <CardContent>

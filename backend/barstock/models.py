@@ -47,6 +47,26 @@ class InventoryItem(models.Model):
         return self.name
 
 
+class SalesSession(models.Model):
+    started_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="started_sales_sessions")
+    ended_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="ended_sales_sessions",
+        null=True,
+        blank=True,
+    )
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-started_at"]
+
+    def __str__(self) -> str:
+        end_value = self.ended_at.isoformat() if self.ended_at else "active"
+        return f"Sales Session {self.id} ({self.started_at.isoformat()} - {end_value})"
+
+
 class Sale(models.Model):
     class PaymentMethod(models.TextChoices):
         CASH = "cash", "Cash"
@@ -58,6 +78,13 @@ class Sale(models.Model):
         PENDING = "pending", "Pending"
     
     staff = models.ForeignKey(User, on_delete=models.PROTECT, related_name="sales")
+    sales_session = models.ForeignKey(
+        SalesSession,
+        on_delete=models.SET_NULL,
+        related_name="sales",
+        null=True,
+        blank=True,
+    )
     customer_name = models.CharField(max_length=255, blank=True, default="")
     payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices, default=PaymentMethod.CASH)
     payment_status = models.CharField(max_length=10, choices=PaymentStatus.choices, default=PaymentStatus.PAID)
