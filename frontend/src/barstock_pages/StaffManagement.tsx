@@ -39,8 +39,8 @@ export function StaffManagement() {
       toast({ title: 'Staff removed', description: `${name} has been removed.` });
     } catch (err) {
       toast({
-        title: 'Not supported yet',
-        description: err instanceof Error ? err.message : 'Staff deletion is not enabled on the backend yet.',
+        title: 'Failed to remove staff',
+        description: err instanceof Error ? err.message : 'Request failed',
         variant: 'destructive',
       });
     }
