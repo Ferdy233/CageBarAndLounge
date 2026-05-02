@@ -261,7 +261,7 @@ class SalesSessionViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(session)
         return Response({"current_session": serializer.data})
 
-    @action(detail=False, methods=["post"], url_path="start", permission_classes=[IsSupervisorOrAdmin])
+    @action(detail=False, methods=["post"], url_path="start", permission_classes=[permissions.IsAuthenticated])
     def start_session(self, request):
         active_session = SalesSession.objects.filter(ended_at__isnull=True).order_by("-started_at").first()
         if active_session:
@@ -271,7 +271,7 @@ class SalesSessionViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(session)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=["post"], url_path="end", permission_classes=[IsSupervisorOrAdmin])
+    @action(detail=False, methods=["post"], url_path="end", permission_classes=[permissions.IsAuthenticated])
     def end_session(self, request):
         active_session = SalesSession.objects.filter(ended_at__isnull=True).order_by("-started_at").first()
         if not active_session:

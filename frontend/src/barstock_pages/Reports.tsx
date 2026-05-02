@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/utils';
 
 export function Reports() {
   const { sales, currentSalesSession, startSalesSession, endSalesSession } = useData();
-  const { isAdmin, canSubmitEOD } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { toast } = useToast();
   const [dateFilter, setDateFilter] = useState('');
   const [isSessionActionLoading, setIsSessionActionLoading] = useState(false);
@@ -207,7 +207,7 @@ export function Reports() {
               Clear filter
             </Button>
           )}
-          {canSubmitEOD && (
+          {user?.role === 'staff' && (
             <>
               <Button
                 variant="outline"
