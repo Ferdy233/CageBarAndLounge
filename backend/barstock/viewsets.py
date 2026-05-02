@@ -194,14 +194,24 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["delete"], url_path="delete-staff", permission_classes=[IsBarStockAdmin])
     def delete_staff(self, request, pk=None):
-        user = self.get_object()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"delete_staff called for pk={pk} by user {request.user.id}")
+        try:
+            user = self.get_object()
+            logger.error(f"User to delete: {user.id} ({user.username})")
+        except Exception as e:
+            logger.error(f"Failed to get object: {e}")
+            raise
         if user.id == request.user.id:
             raise ValidationError({"detail": "You cannot delete yourself."})
         if user.is_superuser:
             raise ValidationError({"detail": "You cannot delete a superuser."})
         try:
             user.delete()
-        except ProtectedError:
+            logger.error(f"User {user.id} deleted successfully")
+        except ProtectedError as e:
+            logger.error(f"ProtectedError: {e}")
             raise ValidationError(
                 {
                     "detail": (
@@ -210,6 +220,9 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
                     )
                 }
             )
+        except Exception as e:
+            logger.error(f"Unexpected error deleting user: {e}")
+            raise
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
